@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Belajar - SRS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Noto Sans JP", sans-serif!important;
+            font-optical-sizing: auto;
+            font-style: normal;
+        }
+       </style>
+</head>
+
+<body class="bg-slate-100 min-h-screen p-4 sm:p-6 md:p-8">
+
+    <div class="container mx-auto max-w-4xl pb-24 md:pb-8">
+        <div class="flex justify-between items-center mb-6">
+            <a href="/" class="text-sky-600 hover:text-sky-800 font-semibold">&larr; Kembali ke Menu</a>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 mb-6">
+            <h2 class="text-2xl font-semibold text-slate-700 mb-4">Kanji Sering Lupa (Level 0)</h2>
+            <p class="text-slate-500 mb-4 text-sm">Kanji di bawah ini adalah yang Anda tandai sebagai "Lupa". Kanji ini
+                akan sering muncul kembali hingga Anda menguasainya.</p>
+            <div id="forgotten-kanji-container" class="flex flex-wrap gap-3">
+                <p id="forgotten-kanji-placeholder" class="text-slate-400">Tidak ada data kanji yang ditandai lupa saat
+                    ini.</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200 mb-6">
+            <h2 class="text-2xl font-semibold text-slate-700 mb-4">Kanji Tahap Awal (Level 1)</h2>
+            <p class="text-slate-500 mb-4 text-sm">Ini adalah kanji yang baru pertama kali Anda pelajari dan tandai
+                "Bagus", atau yang baru naik dari level "Lupa".</p>
+            <div id="hard-kanji-container" class="flex flex-wrap gap-3">
+                <p id="hard-kanji-placeholder" class="text-slate-400">Tidak ada kanji di tahap awal saat ini.</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+            <h2 class="text-2xl font-semibold text-slate-700 mb-4">Jadwal Review Mendatang</h2>
+            <p class="text-slate-500 mb-4 text-sm">Berikut adalah jadwal kapan kanji akan muncul kembali untuk di-review
+                berdasarkan performa Anda.</p>
+            <div id="schedule-container" class="space-y-4">
+                <p id="schedule-placeholder" class="text-slate-400">Tidak ada jadwal review untuk saat ini.</p>
+            </div>
+        </div>
+    </div>
+<div class="fixed bottom-0 left-0 z-50 w-full h-16 bg-white border-t border-slate-200 md:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div class="grid h-full max-w-lg grid-cols-3 mx-auto font-medium">
+            <a href="/" class="inline-flex flex-col items-center justify-center px-5 hover:bg-sky-50 group transition-colors">
+                <i class="fas fa-home text-slate-400 mb-1 group-hover:text-sky-600 text-lg transition-colors"></i>
+                <span class="text-[9px] text-slate-400 group-hover:text-sky-600 uppercase font-bold tracking-wider">Home</span>
+            </a>
+            <a href="/history" class="inline-flex flex-col items-center justify-center px-5 hover:bg-sky-50 group transition-colors">
+                <i class="fas fa-history text-slate-400 mb-1 group-hover:text-sky-600 text-lg transition-colors"></i>
+                <span class="text-[9px] text-slate-400 group-hover:text-sky-600 uppercase font-bold tracking-wider">History</span>
+            </a>
+            <a href="/admin" class="inline-flex flex-col items-center justify-center px-5 hover:bg-sky-50 group transition-colors">
+                <i class="fas fa-chart-line text-slate-400 mb-1 group-hover:text-sky-600 text-lg transition-colors"></i>
+                <span class="text-[9px] text-slate-400 group-hover:text-sky-600 uppercase font-bold tracking-wider">Dashboard</span>
+            </a>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elemen UI
+            const forgottenContainer = document.getElementById('forgotten-kanji-container');
+            const forgottenPlaceholder = document.getElementById('forgotten-kanji-placeholder');
+            const hardContainer = document.getElementById('hard-kanji-container');
+            const hardPlaceholder = document.getElementById('hard-kanji-placeholder');
+            const scheduleContainer = document.getElementById('schedule-container');
+            const schedulePlaceholder = document.getElementById('schedule-placeholder');
+
+            // 1. Muat data SRS dari localStorage
+            const srsData = JSON.parse(localStorage.getItem('kanjiSRSData')) || {};
+
+            // Jika tidak ada data sama sekali, hentikan eksekusi
+            if (Object.keys(srsData).length === 0) {
+                console.log('Tidak ada data SRS yang ditemukan.');
+                return;
+            }
+
+            // 2. Proses data untuk memisahkan kanji
+            const forgottenKanji = [];
+            const hardKanji = [];
+            const schedule = {};
+            const today = new Date().setHours(0, 0, 0, 0);
+
+            for (const kanji in srsData) {
+                const data = srsData[kanji];
+
+                // Klasifikasi Kanji Sulit & Lupa
+                if (data.level === 0) {
+                    forgottenKanji.push(kanji);
+                } else if (data.level === 1) {
+                    hardKanji.push(kanji);
+                }
+
+                // Buat jadwal review
+                const nextReviewDate = new Date(data.nextReview);
+                if (nextReviewDate.getTime() > today) {
+                    const dateString = nextReviewDate.toLocaleDateString('id-ID', {
+                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                    });
+
+                    if (!schedule[dateString]) {
+                        schedule[dateString] = [];
+                    }
+                    schedule[dateString].push(kanji);
+                }
+            }
+
+            // Helper function untuk render list kanji
+            const renderKanjiList = (container, placeholder, kanjiList) => {
+                if (kanjiList.length > 0) {
+                    placeholder.style.display = 'none';
+                    container.innerHTML = kanjiList.map(k =>
+                        `<div class="bg-slate-200 text-slate-800 font-bold text-2xl w-16 h-16 flex items-center justify-center rounded-lg">${k}</div>`
+                    ).join('');
+                }
+            };
+
+            // Render Kanji Lupa dan Sulit
+            renderKanjiList(forgottenContainer, forgottenPlaceholder, forgottenKanji);
+            renderKanjiList(hardContainer, hardPlaceholder, hardKanji);
+
+            // Render Jadwal
+            const sortedScheduleKeys = Object.keys(schedule).sort((a, b) => new Date(a) - new Date(b));
+
+            if (sortedScheduleKeys.length > 0) {
+                schedulePlaceholder.style.display = 'none';
+                let scheduleHTML = '';
+                sortedScheduleKeys.forEach(date => {
+                    scheduleHTML += `
+                        <div class="border-t pt-4">
+                            <h3 class="font-semibold text-md text-sky-700 mb-3">${date}</h3>
+                            <div class="flex flex-wrap gap-3">
+                                ${schedule[date].map(k =>
+                        `<div class="bg-sky-100 text-sky-800 font-bold text-xl w-12 h-12 flex items-center justify-center rounded-lg">${k}</div>`
+                    ).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                scheduleContainer.innerHTML = scheduleHTML;
+            }
+        });
+    </script>
+</body>
+
+</html>
