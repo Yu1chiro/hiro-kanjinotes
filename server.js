@@ -21,6 +21,19 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ==========================================
+// HELPER
+// ==========================================
+// Fisher-Yates shuffle (lebih merata dibanding sort(() => Math.random() - 0.5))
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// ==========================================
 // SISTEM IN-MEMORY CACHE & INVALIDATION
 // ==========================================
 const appCache = new Map();
@@ -29,6 +42,14 @@ const clearUserCache = (userId) => {
   appCache.delete(`decks_${userId}`);
   appCache.delete(`cards_${userId}`);
   appCache.delete('public_game_data'); 
+};
+
+const getAllKanji = async () => {
+  const cacheKey = 'public_game_data';
+  if (appCache.has(cacheKey)) return appCache.get(cacheKey);
+  const result = await pool.query("SELECT * FROM cards ORDER BY id ASC");
+  appCache.set(cacheKey, result.rows);
+  return result.rows;
 };
 
 // ==========================================
@@ -186,18 +207,11 @@ app.delete("/api/cards/:id", authenticateToken, async (req, res) => {
 // =====================================
 app.get("/api/kanji/week/:weekNumber", async (req, res) => {
   try {
-    const cacheKey = 'public_game_data';
-    let allKanji;
-
-    if (appCache.has(cacheKey)) {
-      allKanji = appCache.get(cacheKey);
-    } else {
-      const result = await pool.query("SELECT * FROM cards ORDER BY id ASC");
-      allKanji = result.rows;
-      appCache.set(cacheKey, allKanji);
-    }
+    const allKanji = await getAllKanji();
 
     const week = parseInt(req.params.weekNumber, 10);
+    if (isNaN(week) || week < 1) return res.status(400).json({ message: "Minggu tidak valid." });
+
     const startIndex = (week - 1) * KANJI_PER_WEEK;
     const weeklyKanji = allKanji.slice(startIndex, startIndex + KANJI_PER_WEEK);
 
@@ -206,73 +220,53 @@ app.get("/api/kanji/week/:weekNumber", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// QUIZ JLPT: hanya 2 tipe soal berbasis furigana (tanpa soal arti Indonesia)
+//   Tipe A: Kanji   -> pilih furigana (cara baca)
+//   Tipe B: Furigana -> pilih Kanji
+// Data "meaning" hanya dikirim sebagai info untuk popup setelah menjawab.
 app.get("/api/quiz/week/:weekNumber", async (req, res) => {
   try {
-    const cacheKey = 'public_game_data';
-    let allKanji;
-
-    if (appCache.has(cacheKey)) {
-      allKanji = appCache.get(cacheKey);
-    } else {
-      const result = await pool.query("SELECT * FROM cards ORDER BY id ASC");
-      allKanji = result.rows;
-      appCache.set(cacheKey, allKanji);
-    }
+    const allKanji = await getAllKanji();
 
     const week = parseInt(req.params.weekNumber, 10);
-    const weeklyKanji = allKanji.slice((week - 1) * KANJI_PER_WEEK, ((week - 1) * KANJI_PER_WEEK) + KANJI_PER_WEEK);
+    if (isNaN(week) || week < 1) return res.status(400).json({ message: "Minggu tidak valid." });
+
+    const start = (week - 1) * KANJI_PER_WEEK;
+    const weeklyKanji = allKanji.slice(start, start + KANJI_PER_WEEK);
 
     if (weeklyKanji.length === 0) return res.status(404).json({ message: "Tidak ada kartu." });
 
-    // Acak urutan kartu agar jenis soal jatuh ke kanji yang acak juga
-    const shuffledWeekly = [...weeklyKanji].sort(() => Math.random() - 0.5);
+    // Acak kartu, lalu bagi rata 2 tipe soal (genap = baca, ganjil = pilih kanji)
+    const quizData = shuffle(weeklyKanji).map((card, index) => {
+      const isReadingQuestion = index % 2 === 0;
 
-    // Iterasi membagi merata 4 tipe kuis menggunakan modulo
-    const quizData = shuffledWeekly.map((card, index) => {
-      const questionType = index % 4;
-      let prompt, subject, answer, typeKeyForOptions;
+      const prompt = isReadingQuestion
+        ? "Bagaimana cara membaca Kanji ini?"
+        : "Pilih Kanji yang sesuai dengan cara baca ini:";
+      const subject = isReadingQuestion ? card.kanji : card.furigana;
+      const answer = isReadingQuestion ? card.furigana : card.kanji;
+      const optionKey = isReadingQuestion ? 'furigana' : 'kanji';
 
-      if (questionType === 0) {
-        prompt = "Bagaimana cara membaca Kanji ini?";
-        subject = card.kanji;
-        answer = card.furigana;
-        typeKeyForOptions = 'furigana';
-      } else if (questionType === 1) {
-        prompt = "Apa arti dari Kanji ini?";
-        subject = card.kanji;
-        answer = card.meaning;
-        typeKeyForOptions = 'meaning';
-      } else if (questionType === 2) {
-        prompt = "Pilih Kanji yang sesuai dengan cara baca ini:";
-        subject = card.furigana;
-        answer = card.kanji;
-        typeKeyForOptions = 'kanji';
-      } else {
-        prompt = "Pilih Kanji yang memiliki arti ini:";
-        subject = card.meaning;
-        answer = card.kanji;
-        typeKeyForOptions = 'kanji';
-      }
+      // Kolam pengecoh: nilai unik dari SEMUA kartu, selain jawaban benar.
+      // Diurutkan berdasarkan kemiripan panjang karakter agar pengecoh lebih "mirip" (lebih JLPT-like).
+      const distractorPool = [...new Set(
+        allKanji.map(k => k[optionKey]).filter(v => v && v !== answer)
+      )];
+      const wrongOptions = shuffle(distractorPool)
+        .sort((a, b) => Math.abs(a.length - answer.length) - Math.abs(b.length - answer.length))
+        .slice(0, 3);
 
-      const wrongOptions = new Set();
-      // Filter opsi yang benar dari kolam jawaban
-      const poolChoices = allKanji.filter(k => k[typeKeyForOptions] !== card[typeKeyForOptions]);
-      
-      while(wrongOptions.size < 3 && poolChoices.length > 0) {
-        const randomIndex = Math.floor(Math.random() * poolChoices.length);
-        wrongOptions.add(poolChoices.splice(randomIndex, 1)[0][typeKeyForOptions]);
-      }
-      
       return {
-        prompt: prompt,
-        subject: subject,
-        answer: answer,
-        options: [...Array.from(wrongOptions), answer].sort(() => Math.random() - 0.5)
+        prompt,
+        subject,
+        answer,
+        options: shuffle([...wrongOptions, answer]),
+        // Info lengkap untuk popup setelah menjawab
+        card: { kanji: card.kanji, furigana: card.furigana, meaning: card.meaning }
       };
     });
 
-    // Acak ulang susunan soal yang sudah di-generate sebelum dikirim ke user
-    res.json(quizData.sort(() => Math.random() - 0.5));
+    res.json(shuffle(quizData));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

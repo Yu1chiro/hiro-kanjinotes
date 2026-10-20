@@ -16,10 +16,12 @@
             font-optical-sizing: auto;
             font-style: normal;
         }
-        /* Transisi halus untuk tombol jawaban */
-        .quiz-btn {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        .quiz-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Animasi popup */
+        #answer-modal { transition: opacity 0.2s ease; }
+        #answer-modal.show { opacity: 1; pointer-events: auto; }
+        #answer-modal .sheet { transform: translateY(24px) scale(0.98); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        #answer-modal.show .sheet { transform: translateY(0) scale(1); }
     </style>
 </head>
 <body class="bg-[#f5f5f0] flex items-center justify-center min-h-screen p-4 text-stone-800">
@@ -30,7 +32,7 @@
     </div>
 
     <div id="app-container" class="container mx-auto max-w-lg hidden w-full">
-        
+
         <!-- Header & Progress Bar -->
         <div class="mb-6">
             <div class="flex justify-between items-center mb-3 px-1">
@@ -39,7 +41,6 @@
                 </a>
                 <p id="progress-text" class="text-stone-500 font-bold text-[10px] tracking-widest uppercase"></p>
             </div>
-            <!-- Visual Progress Bar -->
             <div class="w-full bg-stone-200 rounded-full h-1.5 mb-4 overflow-hidden">
                 <div id="progress-bar-fill" class="bg-[#4a5d23] h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
@@ -50,74 +51,117 @@
             <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
                 <div class="flex flex-col items-center justify-center min-h-[160px] mb-8 relative">
                     <p id="quiz-prompt" class="text-stone-400 mb-6 font-bold text-[11px] uppercase tracking-widest text-center"></p>
-                    
+
                     <div class="relative flex items-center justify-center w-full">
                         <h2 id="quiz-subject" class="text-center text-stone-800 transition-all"></h2>
-                        <!-- Tombol Audio Dinamis (Hanya muncul jika teksnya Jepang) -->
                         <button id="play-subject-audio" class="absolute -right-2 top-0 w-8 h-8 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center hidden">
                             <i class="fas fa-volume-up text-[10px]"></i>
                         </button>
                     </div>
                 </div>
 
-                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Tombol Opsi Jawaban akan di-render di sini -->
-                </div>
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
         </div>
 
-        <!-- FASE HASIL (RESULT SCREEN) -->
+        <!-- FASE HASIL -->
         <div id="result-screen" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
             <div id="result-icon" class="text-6xl mb-6"></div>
             <h2 id="result-title" class="text-2xl font-bold mb-2 text-stone-800 tracking-tight"></h2>
-            
+
             <div class="bg-[#fafaf8] rounded-2xl p-6 my-6 border border-stone-100">
                 <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Skor Akhir</p>
                 <p id="result-score" class="text-4xl font-black text-[#4a5d23]"></p>
             </div>
-            
+
             <p id="result-message" class="text-stone-500 text-xs mb-8 leading-relaxed"></p>
-            
+
             <a href="/" class="block w-full bg-stone-800 hover:bg-black text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">
                 Kembali ke Menu
             </a>
         </div>
+    </div>
 
+    <!-- POPUP DETAIL JAWABAN (benar / salah) -->
+    <div id="answer-modal" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-stone-900/40 opacity-0 pointer-events-none">
+        <div class="sheet w-full max-w-md bg-white rounded-3xl shadow-xl border border-stone-200 p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"></div>
+                <div>
+                    <h3 id="modal-title" class="font-bold text-lg leading-tight"></h3>
+                    <p id="modal-sub" class="text-xs text-stone-500"></p>
+                </div>
+            </div>
+
+            <div class="bg-[#fafaf8] border border-stone-100 rounded-2xl p-5 mb-5">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Kanji</p>
+                        <p id="modal-kanji" class="text-5xl font-bold text-stone-800 break-words"></p>
+                    </div>
+                    <button id="modal-audio" class="w-9 h-9 bg-white border border-stone-200 text-stone-500 rounded-full hover:bg-stone-100 transition-colors flex items-center justify-center shrink-0">
+                        <i class="fas fa-volume-up text-xs"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-stone-200">
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Furigana</p>
+                        <p id="modal-furigana" class="text-xl font-semibold text-[#4a5d23] break-words"></p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Arti</p>
+                        <p id="modal-meaning" class="text-sm font-semibold text-stone-700 capitalize break-words"></p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="modal-next" class="w-full bg-stone-800 hover:bg-black text-white font-medium py-3.5 rounded-2xl transition-all text-sm tracking-wide uppercase"></button>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const loadingEl = document.getElementById('loading');
-            const appContainerEl = document.getElementById('app-container');
-            
-            const progressBarFill = document.getElementById('progress-bar-fill');
-            const progressTextEl = document.getElementById('progress-text');
-            
-            const quizModeEl = document.getElementById('quiz-mode');
-            const quizPromptEl = document.getElementById('quiz-prompt');
-            const quizSubjectEl = document.getElementById('quiz-subject');
-            const quizOptionsEl = document.getElementById('quiz-options');
-            const playSubjectAudioBtn = document.getElementById('play-subject-audio');
-            
-            const resultScreenEl = document.getElementById('result-screen');
-            const resultIconEl = document.getElementById('result-icon');
-            const resultTitleEl = document.getElementById('result-title');
-            const resultScoreEl = document.getElementById('result-score');
-            const resultMessageEl = document.getElementById('result-message');
+            const $ = (id) => document.getElementById(id);
+
+            const loadingEl = $('loading');
+            const appContainerEl = $('app-container');
+            const progressBarFill = $('progress-bar-fill');
+            const progressTextEl = $('progress-text');
+
+            const quizModeEl = $('quiz-mode');
+            const quizPromptEl = $('quiz-prompt');
+            const quizSubjectEl = $('quiz-subject');
+            const quizOptionsEl = $('quiz-options');
+            const playSubjectAudioBtn = $('play-subject-audio');
+
+            const resultScreenEl = $('result-screen');
+            const resultIconEl = $('result-icon');
+            const resultTitleEl = $('result-title');
+            const resultScoreEl = $('result-score');
+            const resultMessageEl = $('result-message');
+
+            // Modal
+            const modalEl = $('answer-modal');
+            const modalIconEl = $('modal-icon');
+            const modalTitleEl = $('modal-title');
+            const modalSubEl = $('modal-sub');
+            const modalKanjiEl = $('modal-kanji');
+            const modalFuriganaEl = $('modal-furigana');
+            const modalMeaningEl = $('modal-meaning');
+            const modalAudioBtn = $('modal-audio');
+            const modalNextBtn = $('modal-next');
 
             let currentWeek = 0;
             let quizData = [];
             let currentQuizIndex = 0;
             let score = 0;
 
-            // Utility: Cek apakah teks mengandung huruf Jepang (Kanji/Kana)
             function containsJapanese(text) {
                 return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(text);
             }
 
-            // Text To Speech API
             function playTTS(text, lang = 'ja-JP') {
-                if ('speechSynthesis' in window && containsJapanese(text)) {
+                if ('speechSynthesis' in window && text && containsJapanese(text)) {
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = lang;
@@ -126,9 +170,7 @@
                 }
             }
 
-            playSubjectAudioBtn.addEventListener('click', () => {
-                playTTS(quizSubjectEl.textContent);
-            });
+            playSubjectAudioBtn.addEventListener('click', () => playTTS(quizSubjectEl.textContent));
 
             async function init() {
                 const params = new URLSearchParams(window.location.search);
@@ -142,17 +184,18 @@
                     const res = await fetch(`/api/quiz/week/${currentWeek}`);
                     if (!res.ok) throw new Error('Gagal memuat data kuis');
                     quizData = await res.json();
-                    
+
                     loadingEl.classList.add('hidden');
                     appContainerEl.classList.remove('hidden');
-                    
                     startQuiz();
-                } catch(error) {
+                } catch (error) {
+                    loadingEl.classList.remove('animate-pulse');
                     loadingEl.innerHTML = `
                         <div class="text-4xl text-rose-500 mb-4"><i class="fas fa-exclamation-circle"></i></div>
-                        <h2 class="text-sm font-semibold text-rose-600 mb-4">${error.message}</h2>
+                        <h2 class="text-sm font-semibold text-rose-600 mb-4"></h2>
                         <a href="/" class="text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs uppercase">Kembali</a>
                     `;
+                    loadingEl.querySelector('h2').textContent = error.message;
                 }
             }
 
@@ -163,58 +206,53 @@
             }
 
             function showQuestion() {
-                // Update Progress Bar
                 const progressPercent = (currentQuizIndex / quizData.length) * 100;
                 progressBarFill.style.width = `${progressPercent}%`;
                 progressTextEl.textContent = `SOAL ${currentQuizIndex + 1} / ${quizData.length}`;
 
                 const q = quizData[currentQuizIndex];
-                
+
                 quizPromptEl.textContent = q.prompt;
                 quizSubjectEl.textContent = q.subject;
-                
-                // Cek apakah subject mengandung bahasa jepang, jika ya tampilkan tombol audio
-                if (containsJapanese(q.subject)) {
-                    playSubjectAudioBtn.classList.remove('hidden');
+                playSubjectAudioBtn.classList.toggle('hidden', !containsJapanese(q.subject));
+
+                // Ukuran font subject menyesuaikan panjang teks (semua soal berbahasa Jepang)
+                if (q.subject.length > 6) {
+                    quizSubjectEl.className = "text-3xl md:text-4xl font-bold text-[#4a5d23] break-words px-4 w-full text-center";
+                } else if (q.subject.length > 3) {
+                    quizSubjectEl.className = "text-5xl md:text-6xl font-bold text-stone-800 break-words text-center";
                 } else {
-                    playSubjectAudioBtn.classList.add('hidden');
-                }
-                
-                // Menyesuaikan ukuran font dinamis agar tidak bablas
-                if (q.subject.length > 5) {
-                    quizSubjectEl.className = "text-2xl md:text-3xl font-bold text-[#4a5d23] capitalize break-words px-4 w-full";
-                } else {
-                    quizSubjectEl.className = "text-6xl md:text-7xl font-bold text-stone-800";
+                    quizSubjectEl.className = "text-6xl md:text-7xl font-bold text-stone-800 text-center";
                 }
 
                 quizOptionsEl.innerHTML = '';
-                
+
                 q.options.forEach(option => {
                     const button = document.createElement('button');
                     button.textContent = option;
-                    
-                    // Deteksi jika option adalah kanji/kana, sesuaikan font
-                    const isKanjiOption = option.length <= 4 && containsJapanese(option);
-                    const optionStyle = isKanjiOption ? "text-3xl font-bold py-6 px-4" : "text-sm font-semibold p-4 capitalize break-words";
-                    
-                    button.className = `quiz-btn w-full ${optionStyle} bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center hover:bg-white hover:border-[#4a5d23] hover:shadow-sm text-stone-700 active:scale-95 min-h-[80px] flex items-center justify-center`;
-                    
+
+                    // Semua opsi adalah teks Jepang (furigana / kanji)
+                    const optionStyle = option.length > 6
+                        ? "text-xl font-bold py-6 px-3"
+                        : "text-3xl font-bold py-6 px-4";
+
+                    button.className = `quiz-btn w-full ${optionStyle} bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center hover:bg-white hover:border-[#4a5d23] hover:shadow-sm text-stone-700 active:scale-95 min-h-[80px] flex items-center justify-center break-words`;
+
                     button.onclick = () => checkAnswer(option, button);
                     quizOptionsEl.appendChild(button);
                 });
             }
 
             function checkAnswer(selectedOption, button) {
-                const correctAnswer = quizData[currentQuizIndex].answer;
+                const q = quizData[currentQuizIndex];
+                const correctAnswer = q.answer;
                 const isCorrect = (selectedOption === correctAnswer);
-                
-                // Nonaktifkan semua tombol
+
                 const buttons = Array.from(quizOptionsEl.querySelectorAll('button'));
                 buttons.forEach(btn => {
                     btn.disabled = true;
                     btn.classList.remove('hover:bg-white', 'hover:border-[#4a5d23]', 'hover:shadow-sm', 'active:scale-95');
-                    
-                    // Highlight jawaban yang benar (Warna Matcha Green)
+
                     if (btn.textContent === correctAnswer) {
                         btn.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
                         btn.classList.add('bg-[#4a5d23]', 'border-[#3d4d1d]', 'text-white', 'shadow-md');
@@ -223,30 +261,386 @@
 
                 if (isCorrect) {
                     score++;
-                    // Reward Audio: Jika jawaban benar berupa teks Jepang, bacakan
-                    playTTS(correctAnswer);
+                    playTTS(q.card.furigana);
                 } else {
-                    // Highlight merah jika salah (Warna Rose)
-                    button.classList.remove('bg-[#4a5d23]', 'border-[#3d4d1d]', 'text-white'); 
                     button.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
                     button.classList.add('bg-rose-500', 'border-rose-600', 'text-white', 'shadow-md');
                 }
 
-                // Jeda sebelum lanjut ke soal berikutnya
-                setTimeout(() => {
-                    currentQuizIndex++;
-                    if (currentQuizIndex < quizData.length) {
-                        showQuestion();
-                    } else {
-                        showResult();
-                    }
-                }, 1800); 
+                showModal(isCorrect, selectedOption, q);
             }
 
+            function showModal(isCorrect, selectedOption, q) {
+                modalIconEl.className = `w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${isCorrect ? 'bg-[#4a5d23]' : 'bg-rose-500'}`;
+                modalIconEl.innerHTML = `<i class="fas ${isCorrect ? 'fa-check' : 'fa-xmark'}"></i>`;
+                modalTitleEl.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
+                modalTitleEl.className = `font-bold text-lg leading-tight ${isCorrect ? 'text-[#4a5d23]' : 'text-rose-600'}`;
+                modalSubEl.textContent = isCorrect ? 'Jawabanmu tepat.' : `Jawabanmu: ${selectedOption}`;
+
+                modalKanjiEl.textContent = q.card.kanji;
+                modalFuriganaEl.textContent = q.card.furigana;
+                modalMeaningEl.textContent = q.card.meaning;
+
+                const isLast = currentQuizIndex === quizData.length - 1;
+                modalNextBtn.textContent = isLast ? 'Lihat Hasil' : 'Soal Berikutnya';
+
+                modalAudioBtn.onclick = () => playTTS(q.card.furigana);
+
+                modalEl.classList.add('show');
+                modalNextBtn.focus();
+            }
+
+            modalNextBtn.addEventListener('click', () => {
+                modalEl.classList.remove('show');
+                window.speechSynthesis && window.speechSynthesis.cancel();
+                currentQuizIndex++;
+                if (currentQuizIndex < quizData.length) {
+                    showQuestion();
+                } else {
+                    showResult();
+                }
+            });
+
             function showResult() {
-                // Selesaikan progress bar ke 100%
                 progressBarFill.style.width = '100%';
-                
+
+                quizModeEl.classList.add('hidden');
+                resultScreenEl.classList.remove('hidden');
+                progressTextEl.textContent = 'HASIL EVALUASI';
+
+                const percentage = Math.round((score / quizData.length) * 100);
+                const PASSING_GRADE = 80;
+
+                resultScoreEl.textContent = `${percentage}%`;
+
+                if (percentage >= PASSING_GRADE) {
+                    resultIconEl.innerHTML = '<i class="fas fa-medal text-yellow-400 drop-shadow-md"></i>';
+                    resultTitleEl.textContent = 'Luar Biasa!';
+                    resultMessageEl.innerHTML = `Anda berhasil menjawab <b>${score} dari ${quizData.length}</b> soal dengan benar. Progress minggu ke-${currentWeek} telah disimpan.`;
+                    saveProgress();
+                } else {
+                    resultIconEl.innerHTML = '<i class="fas fa-seedling text-amber-500"></i>';
+                    resultTitleEl.textContent = 'Terus Bertumbuh!';
+                    resultMessageEl.innerHTML = `Anda menjawab <b>${score} dari ${quizData.length}</b> benar. Syarat kelulusan adalah ${PASSING_GRADE}%. Ulangi kembali materi di Mode Belajar.`;
+                }
+            }
+
+            function saveProgress() {
+                const progress = JSON.parse(localStorage.getItem('kanjiProgress')) || {};
+                progress[currentWeek] = true;
+                localStorage.setItem('kanjiProgress', JSON.stringify(progress));
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Mode - Evaluasi Mingguan</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Poppins", "Noto Sans JP", sans-serif !important;
+            font-optical-sizing: auto;
+            font-style: normal;
+        }
+        .quiz-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Animasi popup */
+        #answer-modal { transition: opacity 0.2s ease; }
+        #answer-modal.show { opacity: 1; pointer-events: auto; }
+        #answer-modal .sheet { transform: translateY(24px) scale(0.98); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+        #answer-modal.show .sheet { transform: translateY(0) scale(1); }
+    </style>
+</head>
+<body class="bg-[#f5f5f0] flex items-center justify-center min-h-screen p-4 text-stone-800">
+
+    <div id="loading" class="text-center animate-pulse">
+        <div class="text-4xl text-[#4a5d23] mb-4"><i class="fas fa-spinner fa-spin"></i></div>
+        <h2 class="text-xs font-bold text-stone-500 tracking-widest uppercase">Mempersiapkan Ujian...</h2>
+    </div>
+
+    <div id="app-container" class="container mx-auto max-w-lg hidden w-full">
+
+        <!-- Header & Progress Bar -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-3 px-1">
+                <a href="/" class="text-stone-500 hover:text-stone-800 font-semibold text-xs tracking-wider uppercase transition-colors">
+                    <i class="fas fa-times mr-1"></i> Keluar
+                </a>
+                <p id="progress-text" class="text-stone-500 font-bold text-[10px] tracking-widest uppercase"></p>
+            </div>
+            <div class="w-full bg-stone-200 rounded-full h-1.5 mb-4 overflow-hidden">
+                <div id="progress-bar-fill" class="bg-[#4a5d23] h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- FASE KUIS -->
+        <div id="quiz-mode">
+            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+                <div class="flex flex-col items-center justify-center min-h-[160px] mb-8 relative">
+                    <p id="quiz-prompt" class="text-stone-400 mb-6 font-bold text-[11px] uppercase tracking-widest text-center"></p>
+
+                    <div class="relative flex items-center justify-center w-full">
+                        <h2 id="quiz-subject" class="text-center text-stone-800 transition-all"></h2>
+                        <button id="play-subject-audio" class="absolute -right-2 top-0 w-8 h-8 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center hidden">
+                            <i class="fas fa-volume-up text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- FASE HASIL -->
+        <div id="result-screen" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
+            <div id="result-icon" class="text-6xl mb-6"></div>
+            <h2 id="result-title" class="text-2xl font-bold mb-2 text-stone-800 tracking-tight"></h2>
+
+            <div class="bg-[#fafaf8] rounded-2xl p-6 my-6 border border-stone-100">
+                <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Skor Akhir</p>
+                <p id="result-score" class="text-4xl font-black text-[#4a5d23]"></p>
+            </div>
+
+            <p id="result-message" class="text-stone-500 text-xs mb-8 leading-relaxed"></p>
+
+            <a href="/" class="block w-full bg-stone-800 hover:bg-black text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">
+                Kembali ke Menu
+            </a>
+        </div>
+    </div>
+
+    <!-- POPUP DETAIL JAWABAN (benar / salah) -->
+    <div id="answer-modal" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-stone-900/40 opacity-0 pointer-events-none">
+        <div class="sheet w-full max-w-md bg-white rounded-3xl shadow-xl border border-stone-200 p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"></div>
+                <div>
+                    <h3 id="modal-title" class="font-bold text-lg leading-tight"></h3>
+                    <p id="modal-sub" class="text-xs text-stone-500"></p>
+                </div>
+            </div>
+
+            <div class="bg-[#fafaf8] border border-stone-100 rounded-2xl p-5 mb-5">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Kanji</p>
+                        <p id="modal-kanji" class="text-5xl font-bold text-stone-800 break-words"></p>
+                    </div>
+                    <button id="modal-audio" class="w-9 h-9 bg-white border border-stone-200 text-stone-500 rounded-full hover:bg-stone-100 transition-colors flex items-center justify-center shrink-0">
+                        <i class="fas fa-volume-up text-xs"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-stone-200">
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Furigana</p>
+                        <p id="modal-furigana" class="text-xl font-semibold text-[#4a5d23] break-words"></p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Arti</p>
+                        <p id="modal-meaning" class="text-sm font-semibold text-stone-700 capitalize break-words"></p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="modal-next" class="w-full bg-stone-800 hover:bg-black text-white font-medium py-3.5 rounded-2xl transition-all text-sm tracking-wide uppercase"></button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const $ = (id) => document.getElementById(id);
+
+            const loadingEl = $('loading');
+            const appContainerEl = $('app-container');
+            const progressBarFill = $('progress-bar-fill');
+            const progressTextEl = $('progress-text');
+
+            const quizModeEl = $('quiz-mode');
+            const quizPromptEl = $('quiz-prompt');
+            const quizSubjectEl = $('quiz-subject');
+            const quizOptionsEl = $('quiz-options');
+            const playSubjectAudioBtn = $('play-subject-audio');
+
+            const resultScreenEl = $('result-screen');
+            const resultIconEl = $('result-icon');
+            const resultTitleEl = $('result-title');
+            const resultScoreEl = $('result-score');
+            const resultMessageEl = $('result-message');
+
+            // Modal
+            const modalEl = $('answer-modal');
+            const modalIconEl = $('modal-icon');
+            const modalTitleEl = $('modal-title');
+            const modalSubEl = $('modal-sub');
+            const modalKanjiEl = $('modal-kanji');
+            const modalFuriganaEl = $('modal-furigana');
+            const modalMeaningEl = $('modal-meaning');
+            const modalAudioBtn = $('modal-audio');
+            const modalNextBtn = $('modal-next');
+
+            let currentWeek = 0;
+            let quizData = [];
+            let currentQuizIndex = 0;
+            let score = 0;
+
+            function containsJapanese(text) {
+                return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(text);
+            }
+
+            function playTTS(text, lang = 'ja-JP') {
+                if ('speechSynthesis' in window && text && containsJapanese(text)) {
+                    window.speechSynthesis.cancel();
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = lang;
+                    utterance.rate = 0.85;
+                    window.speechSynthesis.speak(utterance);
+                }
+            }
+
+            playSubjectAudioBtn.addEventListener('click', () => playTTS(quizSubjectEl.textContent));
+
+            async function init() {
+                const params = new URLSearchParams(window.location.search);
+                currentWeek = params.get('week');
+                if (!currentWeek) {
+                    window.location.href = '/';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/quiz/week/${currentWeek}`);
+                    if (!res.ok) throw new Error('Gagal memuat data kuis');
+                    quizData = await res.json();
+
+                    loadingEl.classList.add('hidden');
+                    appContainerEl.classList.remove('hidden');
+                    startQuiz();
+                } catch (error) {
+                    loadingEl.classList.remove('animate-pulse');
+                    loadingEl.innerHTML = `
+                        <div class="text-4xl text-rose-500 mb-4"><i class="fas fa-exclamation-circle"></i></div>
+                        <h2 class="text-sm font-semibold text-rose-600 mb-4"></h2>
+                        <a href="/" class="text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs uppercase">Kembali</a>
+                    `;
+                    loadingEl.querySelector('h2').textContent = error.message;
+                }
+            }
+
+            function startQuiz() {
+                currentQuizIndex = 0;
+                score = 0;
+                showQuestion();
+            }
+
+            function showQuestion() {
+                const progressPercent = (currentQuizIndex / quizData.length) * 100;
+                progressBarFill.style.width = `${progressPercent}%`;
+                progressTextEl.textContent = `SOAL ${currentQuizIndex + 1} / ${quizData.length}`;
+
+                const q = quizData[currentQuizIndex];
+
+                quizPromptEl.textContent = q.prompt;
+                quizSubjectEl.textContent = q.subject;
+                playSubjectAudioBtn.classList.toggle('hidden', !containsJapanese(q.subject));
+
+                // Ukuran font subject menyesuaikan panjang teks (semua soal berbahasa Jepang)
+                if (q.subject.length > 6) {
+                    quizSubjectEl.className = "text-3xl md:text-4xl font-bold text-[#4a5d23] break-words px-4 w-full text-center";
+                } else if (q.subject.length > 3) {
+                    quizSubjectEl.className = "text-5xl md:text-6xl font-bold text-stone-800 break-words text-center";
+                } else {
+                    quizSubjectEl.className = "text-6xl md:text-7xl font-bold text-stone-800 text-center";
+                }
+
+                quizOptionsEl.innerHTML = '';
+
+                q.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+
+                    // Semua opsi adalah teks Jepang (furigana / kanji)
+                    const optionStyle = option.length > 6
+                        ? "text-xl font-bold py-6 px-3"
+                        : "text-3xl font-bold py-6 px-4";
+
+                    button.className = `quiz-btn w-full ${optionStyle} bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center hover:bg-white hover:border-[#4a5d23] hover:shadow-sm text-stone-700 active:scale-95 min-h-[80px] flex items-center justify-center break-words`;
+
+                    button.onclick = () => checkAnswer(option, button);
+                    quizOptionsEl.appendChild(button);
+                });
+            }
+
+            function checkAnswer(selectedOption, button) {
+                const q = quizData[currentQuizIndex];
+                const correctAnswer = q.answer;
+                const isCorrect = (selectedOption === correctAnswer);
+
+                const buttons = Array.from(quizOptionsEl.querySelectorAll('button'));
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.classList.remove('hover:bg-white', 'hover:border-[#4a5d23]', 'hover:shadow-sm', 'active:scale-95');
+
+                    if (btn.textContent === correctAnswer) {
+                        btn.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
+                        btn.classList.add('bg-[#4a5d23]', 'border-[#3d4d1d]', 'text-white', 'shadow-md');
+                    }
+                });
+
+                if (isCorrect) {
+                    score++;
+                    playTTS(q.card.furigana);
+                } else {
+                    button.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
+                    button.classList.add('bg-rose-500', 'border-rose-600', 'text-white', 'shadow-md');
+                }
+
+                showModal(isCorrect, selectedOption, q);
+            }
+
+            function showModal(isCorrect, selectedOption, q) {
+                modalIconEl.className = `w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${isCorrect ? 'bg-[#4a5d23]' : 'bg-rose-500'}`;
+                modalIconEl.innerHTML = `<i class="fas ${isCorrect ? 'fa-check' : 'fa-xmark'}"></i>`;
+                modalTitleEl.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
+                modalTitleEl.className = `font-bold text-lg leading-tight ${isCorrect ? 'text-[#4a5d23]' : 'text-rose-600'}`;
+                modalSubEl.textContent = isCorrect ? 'Jawabanmu tepat.' : `Jawabanmu: ${selectedOption}`;
+
+                modalKanjiEl.textContent = q.card.kanji;
+                modalFuriganaEl.textContent = q.card.furigana;
+                modalMeaningEl.textContent = q.card.meaning;
+
+                const isLast = currentQuizIndex === quizData.length - 1;
+                modalNextBtn.textContent = isLast ? 'Lihat Hasil' : 'Soal Berikutnya';
+
+                modalAudioBtn.onclick = () => playTTS(q.card.furigana);
+
+                modalEl.classList.add('show');
+                modalNextBtn.focus();
+            }
+
+            modalNextBtn.addEventListener('click', () => {
+                modalEl.classList.remove('show');
+                window.speechSynthesis && window.speechSynthesis.cancel();
+                currentQuizIndex++;
+                if (currentQuizIndex < quizData.length) {
+                    showQuestion();
+                } else {
+                    showResult();
+                }
+            });
+
+            function showResult() {
+                progressBarFill.style.width = '100%';
+
                 quizModeEl.classList.add('hidden');
                 resultScreenEl.classList.remove('hidden');
                 progressTextEl.textContent = 'HASIL EVALUASI';
