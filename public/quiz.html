@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Mode</title>
+    <title>Quiz Mode - Evaluasi Akhir</title>
     <!-- Tailwind CSS v3 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,11 +17,19 @@
             font-style: normal;
         }
         .quiz-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        /* Animasi popup */
-        #answer-modal { transition: opacity 0.2s ease; }
-        #answer-modal.show { opacity: 1; pointer-events: auto; }
-        #answer-modal .sheet { transform: translateY(24px) scale(0.98); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-        #answer-modal.show .sheet { transform: translateY(0) scale(1); }
+        
+        /* Toast Notification Animasi */
+        @keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+        .toast-in { animation: popIn .22s ease-out; }
+        .toast-out { opacity: 0; transform: translateY(-12px); transition: all .25s ease; }
+        @keyframes toastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+        /* Matching Cards CSS */
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .perspective-1000 { perspective: 1000px; }
+        .mc-card { -webkit-tap-highlight-color: transparent; }
     </style>
 </head>
 <body class="bg-[#f5f5f0] flex items-center justify-center min-h-screen p-4 text-stone-800">
@@ -31,8 +39,8 @@
         <h2 class="text-xs font-bold text-stone-500 tracking-widest uppercase">Mempersiapkan Ujian...</h2>
     </div>
 
-    <div id="app-container" class="container mx-auto max-w-lg hidden w-full">
-
+    <div id="app-container" class="container mx-auto max-w-lg hidden w-full pb-10">
+        
         <!-- Header & Progress Bar -->
         <div class="mb-6">
             <div class="flex justify-between items-center mb-3 px-1">
@@ -46,115 +54,192 @@
             </div>
         </div>
 
-        <!-- FASE KUIS -->
-        <div id="quiz-mode">
-            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
-                <div class="flex flex-col items-center justify-center min-h-[160px] mb-8 relative">
-                    <p id="quiz-prompt" class="text-stone-400 mb-6 font-bold text-[11px] uppercase tracking-widest text-center"></p>
-
-                    <div class="relative flex items-center justify-center w-full">
-                        <h2 id="quiz-subject" class="text-center text-stone-800 transition-all"></h2>
-                        <button id="play-subject-audio" class="absolute -right-2 top-0 w-8 h-8 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center hidden">
-                            <i class="fas fa-volume-up text-[10px]"></i>
-                        </button>
-                    </div>
+        <!-- =====================================
+             TAHAP 1: PILIHAN GANDA
+        ====================================== -->
+        <div id="phase-1-mc" class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+            <div class="text-center mb-4">
+                <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Tahap 1 • Pilihan Ganda</span>
+            </div>
+            <div class="flex flex-col items-center justify-center min-h-[140px] mb-8 relative">
+                <p id="quiz-prompt" class="text-stone-400 mb-6 font-bold text-[11px] uppercase tracking-widest text-center"></p>
+                
+                <div class="relative flex items-center justify-center w-full">
+                    <h2 id="quiz-subject" class="text-center text-stone-800 transition-all"></h2>
+                    <button id="play-subject-audio" class="absolute -right-2 top-0 w-8 h-8 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center hidden">
+                        <i class="fas fa-volume-up text-[10px]"></i>
+                    </button>
                 </div>
+            </div>
+            <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
 
-                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <!-- =====================================
+             TAHAP 2: MATCHING CARDS
+        ====================================== -->
+        <div id="phase-2-mcards" class="hidden text-center bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+            <span class="bg-[#f1f4eb] text-[#4a5d23] text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest inline-block mb-4">Tahap 2 • Matching Cards</span>
+            <h3 class="text-base font-semibold text-stone-800 mt-2">Temukan Pasangannya</h3>
+            <p class="text-[11px] text-stone-400 mt-1 mb-6">Cocokkan Kanji dengan Furigana-nya. Penalti -1 poin untuk setiap kesalahan.</p>
+            
+            <div id="mc-grid" class="grid grid-cols-4 gap-2 md:gap-3"></div>
+        </div>
+
+        <!-- =====================================
+             TAHAP 3: TYPING QUIZ
+        ====================================== -->
+        <div id="phase-3-typing" class="hidden text-center bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+            <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest inline-block mb-4">Tahap 3 • Typing Quiz</span>
+            <h3 class="text-base font-semibold text-[#4a5d23] mt-2">Ketik Cara Baca (Furigana)</h3>
+            <p class="text-[11px] text-stone-400 mt-1 mb-6">Gunakan huruf Hiragana / Romaji</p>
+            
+            <div class="relative mb-8">
+                <div id="ty-kanji-display" class="text-6xl font-bold text-center text-stone-800 break-words px-10"></div>
+                <button id="play-audio-btn-ty" class="absolute top-0 right-0 w-10 h-10 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center">
+                    <i class="fas fa-volume-up text-xs"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="ty-input" autocomplete="off" autocapitalize="off" class="w-full p-4 bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center text-lg focus:border-[#4a5d23] focus:bg-white focus:ring-0 outline-none transition-all font-medium" placeholder="Ketik disini...">
+                <button id="ty-submit" class="w-full bg-stone-800 text-white font-medium py-4 rounded-2xl hover:bg-black transition-all text-sm tracking-wide uppercase shadow-sm">Periksa</button>
             </div>
         </div>
 
-        <!-- FASE HASIL -->
+        <!-- =====================================
+             FASE HASIL AKHIR
+        ====================================== -->
         <div id="result-screen" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
             <div id="result-icon" class="text-6xl mb-6"></div>
             <h2 id="result-title" class="text-2xl font-bold mb-2 text-stone-800 tracking-tight"></h2>
-
+            
             <div class="bg-[#fafaf8] rounded-2xl p-6 my-6 border border-stone-100">
-                <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Skor Akhir</p>
-                <p id="result-score" class="text-4xl font-black text-[#4a5d23]"></p>
+                <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Skor Akhir Anda</p>
+                <p id="result-score" class="text-5xl font-black text-[#4a5d23]"></p>
+                
+                <div class="flex justify-around mt-4 pt-4 border-t border-stone-200 text-[10px] uppercase font-bold text-stone-500">
+                    <div class="text-center">
+                        <span class="block text-lg text-stone-800" id="detail-mc">0</span> PG
+                    </div>
+                    <div class="text-center border-l border-r border-stone-200 px-4">
+                        <span class="block text-lg text-stone-800" id="detail-match">0</span> Match
+                    </div>
+                    <div class="text-center">
+                        <span class="block text-lg text-stone-800" id="detail-ty">0</span> Ketik
+                    </div>
+                </div>
             </div>
-
+            
             <p id="result-message" class="text-stone-500 text-xs mb-8 leading-relaxed"></p>
-
             <a href="/" class="block w-full bg-stone-800 hover:bg-black text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">
                 Kembali ke Menu
             </a>
         </div>
     </div>
 
-    <!-- POPUP DETAIL JAWABAN (benar / salah) -->
-    <div id="answer-modal" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-stone-900/40 opacity-0 pointer-events-none">
-        <div class="sheet w-full max-w-md bg-white rounded-3xl shadow-xl border border-stone-200 p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div id="modal-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"></div>
-                <div>
-                    <h3 id="modal-title" class="font-bold text-lg leading-tight"></h3>
-                    <p id="modal-sub" class="text-xs text-stone-500"></p>
+    <!-- =====================================
+         TOAST POPUP NOTIFICATION (Auto-hide)
+    ====================================== -->
+    <div id="answer-modal" class="hidden fixed inset-x-0 top-4 z-50 flex justify-center px-4 pointer-events-none">
+        <div id="toast-card" class="toast-in w-full max-w-sm bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden">
+            <div id="modal-status" class="px-4 py-2.5 flex items-center gap-2 text-white">
+                <i id="modal-status-icon" class="fas"></i>
+                <p id="modal-status-title" class="font-bold text-xs tracking-wide"></p>
+                <p id="modal-status-sub" class="text-[11px] opacity-90 ml-auto truncate"></p>
+            </div>
+            <div class="px-4 py-3 flex items-center gap-4">
+                <div id="modal-kanji" class="text-4xl font-bold text-stone-800 flex-shrink-0"></div>
+                <div class="min-w-0">
+                    <p id="modal-furigana" class="text-lg font-bold text-[#4a5d23] break-words"></p>
+                    <p id="modal-meaning" class="text-xs text-stone-500 capitalize break-words line-clamp-2"></p>
                 </div>
             </div>
-
-            <div class="bg-[#fafaf8] border border-stone-100 rounded-2xl p-5 mb-5">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Kanji</p>
-                        <p id="modal-kanji" class="text-5xl font-bold text-stone-800 break-words"></p>
-                    </div>
-                    <button id="modal-audio" class="w-9 h-9 bg-white border border-stone-200 text-stone-500 rounded-full hover:bg-stone-100 transition-colors flex items-center justify-center shrink-0">
-                        <i class="fas fa-volume-up text-xs"></i>
-                    </button>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-stone-200">
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Furigana</p>
-                        <p id="modal-furigana" class="text-xl font-semibold text-[#4a5d23] break-words"></p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Arti</p>
-                        <p id="modal-meaning" class="text-sm font-semibold text-stone-700 capitalize break-words"></p>
-                    </div>
-                </div>
-            </div>
-
-            <button id="modal-next" class="w-full bg-stone-800 hover:bg-black text-white font-medium py-3.5 rounded-2xl transition-all text-sm tracking-wide uppercase"></button>
+            <div class="h-1 bg-stone-100"><div id="toast-bar" class="h-full bg-[#a3b18a] origin-left"></div></div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const $ = (id) => document.getElementById(id);
-
+            
+            // UI Elements
             const loadingEl = $('loading');
             const appContainerEl = $('app-container');
             const progressBarFill = $('progress-bar-fill');
             const progressTextEl = $('progress-text');
-
-            const quizModeEl = $('quiz-mode');
-            const quizPromptEl = $('quiz-prompt');
-            const quizSubjectEl = $('quiz-subject');
-            const quizOptionsEl = $('quiz-options');
-            const playSubjectAudioBtn = $('play-subject-audio');
-
+            
+            // Phase Containers
+            const phase1El = $('phase-1-mc');
+            const phase2El = $('phase-2-mcards');
+            const phase3El = $('phase-3-typing');
             const resultScreenEl = $('result-screen');
             const resultIconEl = $('result-icon');
             const resultTitleEl = $('result-title');
             const resultScoreEl = $('result-score');
             const resultMessageEl = $('result-message');
-
-            // Modal
-            const modalEl = $('answer-modal');
-            const modalIconEl = $('modal-icon');
-            const modalTitleEl = $('modal-title');
-            const modalSubEl = $('modal-sub');
-            const modalKanjiEl = $('modal-kanji');
-            const modalFuriganaEl = $('modal-furigana');
-            const modalMeaningEl = $('modal-meaning');
-            const modalAudioBtn = $('modal-audio');
-            const modalNextBtn = $('modal-next');
-
+            
+            // Quiz State
             let currentWeek = 0;
-            let quizData = [];
-            let currentQuizIndex = 0;
-            let score = 0;
+            let rawKanjiData = [];
+            let totalKanji = 0;
+            
+            // Scores (Total Maximum = totalKanji * 3)
+            let scoreMC = 0;
+            let scoreMatch = 0;
+            let scoreTy = 0;
+
+            // --- TAHAP 1 VARIABLES ---
+            let mcQuestions = [];
+            let currentMCIndex = 0;
+            const quizPromptEl = $('quiz-prompt');
+            const quizSubjectEl = $('quiz-subject');
+            const quizOptionsEl = $('quiz-options');
+            const playSubjectAudioBtn = $('play-subject-audio');
+
+            // --- TAHAP 2 VARIABLES ---
+            let mcCards = [];
+            let mcFlippedCards = [];
+            let mcMatchedCount = 0;
+            let mcMistakes = 0;
+            let mcIsLocked = false;
+            const mcGrid = $('mc-grid');
+
+            // --- TAHAP 3 VARIABLES ---
+            let tyQueue = [];
+            let tyCurrent = null;
+            let tyAnswered = false;
+            let tyCurrentIndex = 0;
+            const tyKanjiDisplay = $('ty-kanji-display');
+            const tyInput = $('ty-input');
+            const tySubmit = $('ty-submit');
+            const playAudioBtnTy = $('play-audio-btn-ty');
+
+            // --- MODAL ELEMENTS (Toast) ---
+            const modalEl = $('answer-modal');
+            const modalStatus = $('modal-status');
+            const modalStatusIcon = $('modal-status-icon');
+            const modalStatusTitle = $('modal-status-title');
+            const modalStatusSub = $('modal-status-sub');
+            const modalKanji = $('modal-kanji');
+            const modalFurigana = $('modal-furigana');
+            const modalMeaning = $('modal-meaning');
+            const toastCard = $('toast-card');
+            const toastBar = $('toast-bar');
+
+            // ==========================================
+            // UTILITIES
+            // ==========================================
+            const shuffle = (arr) => {
+                let a = [...arr];
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            };
+
+            const toHira = (str) => String(str || '').trim().replace(/\s+/g, '')
+                .replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 
             function containsJapanese(text) {
                 return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(text);
@@ -170,502 +255,370 @@
                 }
             }
 
-            playSubjectAudioBtn.addEventListener('click', () => playTTS(quizSubjectEl.textContent));
+            function escapeHTML(s) {
+                return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            }
 
+            // ==========================================
+            // INITIALIZATION
+            // ==========================================
             async function init() {
                 const params = new URLSearchParams(window.location.search);
                 currentWeek = params.get('week');
+                
                 if (!currentWeek) {
                     window.location.href = '/';
                     return;
                 }
 
                 try {
-                    const res = await fetch(`/api/quiz/week/${currentWeek}`);
-                    if (!res.ok) throw new Error('Gagal memuat data kuis');
-                    quizData = await res.json();
+                    const res = await fetch(`/api/kanji/week/${currentWeek}`);
+                    if (!res.ok) throw new Error('Gagal memuat data ujian');
+                    
+                    const data = await res.json();
+                    rawKanjiData = data.kanjiData;
+                    totalKanji = rawKanjiData.length;
+
+                    if (totalKanji === 0) throw new Error('Data kosakata kosong.');
 
                     loadingEl.classList.add('hidden');
                     appContainerEl.classList.remove('hidden');
-                    startQuiz();
+                    
+                    startPhase1();
                 } catch (error) {
                     loadingEl.classList.remove('animate-pulse');
                     loadingEl.innerHTML = `
                         <div class="text-4xl text-rose-500 mb-4"><i class="fas fa-exclamation-circle"></i></div>
-                        <h2 class="text-sm font-semibold text-rose-600 mb-4"></h2>
+                        <h2 class="text-sm font-semibold text-rose-600 mb-4">${error.message}</h2>
                         <a href="/" class="text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs uppercase">Kembali</a>
                     `;
-                    loadingEl.querySelector('h2').textContent = error.message;
                 }
             }
 
-            function startQuiz() {
-                currentQuizIndex = 0;
-                score = 0;
-                showQuestion();
+            // ==========================================
+            // TAHAP 1: PILIHAN GANDA (MC)
+            // ==========================================
+            function startPhase1() {
+                mcQuestions = shuffle(rawKanjiData).map((card, index) => {
+                    const isReading = index % 2 === 0;
+                    const prompt = isReading ? "Bagaimana cara membaca Kanji ini?" : "Pilih Kanji yang sesuai dengan cara baca ini:";
+                    const subject = isReading ? card.kanji : card.furigana;
+                    const answer = isReading ? card.furigana : card.kanji;
+                    const key = isReading ? 'furigana' : 'kanji';
+                    
+                    const pool = [...new Set(rawKanjiData.map(k => k[key]).filter(v => v !== answer))];
+                    const wrong = shuffle(pool).slice(0, 3); 
+                    
+                    return { prompt, subject, answer, options: shuffle([...wrong, answer]), card };
+                });
+
+                currentMCIndex = 0;
+                scoreMC = 0;
+                showMCQuestion();
             }
 
-            function showQuestion() {
-                const progressPercent = (currentQuizIndex / quizData.length) * 100;
+            function showMCQuestion() {
+                const progressPercent = (currentMCIndex / (totalKanji * 3)) * 100;
                 progressBarFill.style.width = `${progressPercent}%`;
-                progressTextEl.textContent = `SOAL ${currentQuizIndex + 1} / ${quizData.length}`;
-
-                const q = quizData[currentQuizIndex];
-
+                progressTextEl.textContent = `TAHAP 1/3 - SOAL PG ${currentMCIndex + 1} / ${totalKanji}`;
+                
+                const q = mcQuestions[currentMCIndex];
                 quizPromptEl.textContent = q.prompt;
                 quizSubjectEl.textContent = q.subject;
+                
                 playSubjectAudioBtn.classList.toggle('hidden', !containsJapanese(q.subject));
+                playSubjectAudioBtn.onclick = () => playTTS(q.subject);
 
-                // Ukuran font subject menyesuaikan panjang teks (semua soal berbahasa Jepang)
                 if (q.subject.length > 6) {
                     quizSubjectEl.className = "text-3xl md:text-4xl font-bold text-[#4a5d23] break-words px-4 w-full text-center";
-                } else if (q.subject.length > 3) {
-                    quizSubjectEl.className = "text-5xl md:text-6xl font-bold text-stone-800 break-words text-center";
                 } else {
-                    quizSubjectEl.className = "text-6xl md:text-7xl font-bold text-stone-800 text-center";
+                    quizSubjectEl.className = "text-5xl md:text-6xl font-bold text-stone-800 break-words text-center";
                 }
 
                 quizOptionsEl.innerHTML = '';
-
                 q.options.forEach(option => {
                     const button = document.createElement('button');
                     button.textContent = option;
-
-                    // Semua opsi adalah teks Jepang (furigana / kanji)
-                    const optionStyle = option.length > 6
-                        ? "text-xl font-bold py-6 px-3"
-                        : "text-3xl font-bold py-6 px-4";
-
+                    const optionStyle = option.length > 6 ? "text-xl font-bold py-6 px-3" : "text-3xl font-bold py-6 px-4";
+                    
                     button.className = `quiz-btn w-full ${optionStyle} bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center hover:bg-white hover:border-[#4a5d23] hover:shadow-sm text-stone-700 active:scale-95 min-h-[80px] flex items-center justify-center break-words`;
-
-                    button.onclick = () => checkAnswer(option, button);
+                    button.onclick = () => checkMCAnswer(option, button, q);
                     quizOptionsEl.appendChild(button);
                 });
             }
 
-            function checkAnswer(selectedOption, button) {
-                const q = quizData[currentQuizIndex];
-                const correctAnswer = q.answer;
-                const isCorrect = (selectedOption === correctAnswer);
-
-                const buttons = Array.from(quizOptionsEl.querySelectorAll('button'));
-                buttons.forEach(btn => {
+            function checkMCAnswer(selectedOption, button, q) {
+                const isCorrect = (selectedOption === q.answer);
+                
+                Array.from(quizOptionsEl.querySelectorAll('button')).forEach(btn => {
                     btn.disabled = true;
                     btn.classList.remove('hover:bg-white', 'hover:border-[#4a5d23]', 'hover:shadow-sm', 'active:scale-95');
-
-                    if (btn.textContent === correctAnswer) {
-                        btn.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
-                        btn.classList.add('bg-[#4a5d23]', 'border-[#3d4d1d]', 'text-white', 'shadow-md');
+                    if (btn.textContent === q.answer) {
+                        btn.classList.replace('border-stone-200', 'border-[#3d4d1d]');
+                        btn.classList.replace('bg-[#fafaf8]', 'bg-[#4a5d23]');
+                        btn.classList.replace('text-stone-700', 'text-white');
                     }
                 });
 
                 if (isCorrect) {
-                    score++;
-                    playTTS(q.card.furigana);
+                    scoreMC++;
                 } else {
-                    button.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
-                    button.classList.add('bg-rose-500', 'border-rose-600', 'text-white', 'shadow-md');
+                    button.classList.replace('border-stone-200', 'border-rose-600');
+                    button.classList.replace('bg-[#fafaf8]', 'bg-rose-500');
+                    button.classList.replace('text-stone-700', 'text-white');
                 }
 
-                showModal(isCorrect, selectedOption, q);
+                setTimeout(() => {
+                    showAnswerModal(q.card, isCorrect, () => {
+                        currentMCIndex++;
+                        if (currentMCIndex < totalKanji) showMCQuestion();
+                        else startPhase2();
+                    }, isCorrect ? null : selectedOption);
+                }, 350);
             }
 
-            function showModal(isCorrect, selectedOption, q) {
-                modalIconEl.className = `w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${isCorrect ? 'bg-[#4a5d23]' : 'bg-rose-500'}`;
-                modalIconEl.innerHTML = `<i class="fas ${isCorrect ? 'fa-check' : 'fa-xmark'}"></i>`;
-                modalTitleEl.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
-                modalTitleEl.className = `font-bold text-lg leading-tight ${isCorrect ? 'text-[#4a5d23]' : 'text-rose-600'}`;
-                modalSubEl.textContent = isCorrect ? 'Jawabanmu tepat.' : `Jawabanmu: ${selectedOption}`;
+            // ==========================================
+            // TAHAP 2: MATCHING CARDS
+            // ==========================================
+            function startPhase2() {
+                phase1El.classList.add('hidden');
+                phase2El.classList.remove('hidden');
+                
+                progressBarFill.style.width = '33.33%';
+                progressTextEl.textContent = `TAHAP 2/3 - MATCHING CARDS (0/${totalKanji})`;
 
-                modalKanjiEl.textContent = q.card.kanji;
-                modalFuriganaEl.textContent = q.card.furigana;
-                modalMeaningEl.textContent = q.card.meaning;
+                mcMatchedCount = 0;
+                mcMistakes = 0;
+                mcFlippedCards = [];
+                mcIsLocked = false;
+                mcCards = [];
 
-                const isLast = currentQuizIndex === quizData.length - 1;
-                modalNextBtn.textContent = isLast ? 'Lihat Hasil' : 'Soal Berikutnya';
-
-                modalAudioBtn.onclick = () => playTTS(q.card.furigana);
-
-                modalEl.classList.add('show');
-                modalNextBtn.focus();
+                rawKanjiData.forEach((item, index) => {
+                    mcCards.push({ matchId: index, text: item.kanji, type: 'kanji', item });
+                    mcCards.push({ matchId: index, text: item.furigana, type: 'furigana', item });
+                });
+                mcCards = shuffle(mcCards);
+                
+                renderMatchingCards();
             }
 
-            modalNextBtn.addEventListener('click', () => {
-                modalEl.classList.remove('show');
-                window.speechSynthesis && window.speechSynthesis.cancel();
-                currentQuizIndex++;
-                if (currentQuizIndex < quizData.length) {
-                    showQuestion();
+            function renderMatchingCards() {
+                mcGrid.innerHTML = '';
+                mcCards.forEach((card, index) => {
+                    const textSize = card.type === 'kanji' ? 'text-2xl font-bold' : 'text-xs font-bold leading-tight text-[#4a5d23]';
+                    mcGrid.insertAdjacentHTML('beforeend', `
+                        <div class="mc-card relative w-full aspect-[4/5] cursor-pointer perspective-1000" onclick="flipMcCard(${index})">
+                            <div class="absolute w-full h-full transition-transform duration-500 preserve-3d shadow-sm rounded-2xl" id="mc-inner-${index}">
+                                <div class="absolute inset-0 backface-hidden bg-[#fafaf8] border-2 border-stone-200 rounded-2xl flex items-center justify-center text-stone-300 hover:bg-stone-50 transition-colors">
+                                    <i class="fas fa-leaf text-xl opacity-50"></i>
+                                </div>
+                                <div class="absolute inset-0 backface-hidden bg-white border-2 border-[#4a5d23] rounded-2xl flex items-center justify-center p-1 text-center rotate-y-180" id="mc-back-${index}">
+                                    <span class="${textSize} break-words">${escapeHTML(card.text)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+            }
+
+            window.flipMcCard = function(index) {
+                if (mcIsLocked) return;
+                const innerEl = $(`mc-inner-${index}`);
+                if (innerEl.classList.contains('is-flipped') || innerEl.classList.contains('is-matched')) return;
+
+                innerEl.classList.add('is-flipped');
+                innerEl.style.transform = 'rotateY(180deg)';
+                
+                const cardData = mcCards[index];
+                if (cardData.type === 'kanji') playTTS(cardData.text);
+                
+                mcFlippedCards.push({ index, matchId: cardData.matchId });
+
+                if (mcFlippedCards.length === 2) {
+                    mcIsLocked = true;
+                    checkMcMatch();
+                }
+            };
+
+            function checkMcMatch() {
+                const [c1, c2] = mcFlippedCards;
+                const inner1 = $(`mc-inner-${c1.index}`);
+                const inner2 = $(`mc-inner-${c2.index}`);
+                const back1 = $(`mc-back-${c1.index}`);
+                const back2 = $(`mc-back-${c2.index}`);
+                const d1 = mcCards[c1.index];
+                const d2 = mcCards[c2.index];
+
+                const isMatch = (d1.type !== d2.type) && (d1.item.furigana === d2.item.furigana);
+
+                if (isMatch) {
+                    setTimeout(() => {
+                        [back1, back2].forEach(b => {
+                            b.classList.replace('border-[#4a5d23]', 'border-emerald-500');
+                            b.classList.add('bg-emerald-50');
+                        });
+                        inner1.classList.add('is-matched');
+                        inner2.classList.add('is-matched');
+                        
+                        mcMatchedCount++;
+                        const totalPhaseProgress = totalKanji + mcMatchedCount;
+                        progressBarFill.style.width = `${(totalPhaseProgress / (totalKanji * 3)) * 100}%`;
+                        progressTextEl.textContent = `TAHAP 2/3 - MATCHING CARDS (${mcMatchedCount}/${totalKanji})`;
+
+                        mcFlippedCards = [];
+                        mcIsLocked = false;
+                        
+                        if (mcMatchedCount === totalKanji) {
+                            scoreMatch = Math.max(0, totalKanji - mcMistakes);
+                            setTimeout(startPhase3, 1200);
+                        }
+                    }, 400);
                 } else {
-                    showResult();
-                }
-            });
-
-            function showResult() {
-                progressBarFill.style.width = '100%';
-
-                quizModeEl.classList.add('hidden');
-                resultScreenEl.classList.remove('hidden');
-                progressTextEl.textContent = 'HASIL EVALUASI';
-
-                const percentage = Math.round((score / quizData.length) * 100);
-                const PASSING_GRADE = 80;
-
-                resultScoreEl.textContent = `${percentage}%`;
-
-                if (percentage >= PASSING_GRADE) {
-                    resultIconEl.innerHTML = '<i class="fas fa-medal text-yellow-400 drop-shadow-md"></i>';
-                    resultTitleEl.textContent = 'Luar Biasa!';
-                    resultMessageEl.innerHTML = `Anda berhasil menjawab <b>${score} dari ${quizData.length}</b> soal dengan benar. Progress minggu ke-${currentWeek} telah disimpan.`;
-                    saveProgress();
-                } else {
-                    resultIconEl.innerHTML = '<i class="fas fa-seedling text-amber-500"></i>';
-                    resultTitleEl.textContent = 'Terus Bertumbuh!';
-                    resultMessageEl.innerHTML = `Anda menjawab <b>${score} dari ${quizData.length}</b> benar. Syarat kelulusan adalah ${PASSING_GRADE}%. Ulangi kembali materi di Mode Belajar.`;
+                    mcMistakes++;
+                    setTimeout(() => {
+                        [inner1, inner2].forEach(el => {
+                            el.classList.remove('is-flipped');
+                            el.style.transform = 'rotateY(0deg)';
+                        });
+                        mcFlippedCards = [];
+                        mcIsLocked = false;
+                    }, 1200);
                 }
             }
 
-            function saveProgress() {
-                const progress = JSON.parse(localStorage.getItem('kanjiProgress')) || {};
-                progress[currentWeek] = true;
-                localStorage.setItem('kanjiProgress', JSON.stringify(progress));
+            // ==========================================
+            // TAHAP 3: TYPING QUIZ
+            // ==========================================
+            function startPhase3() {
+                phase2El.classList.add('hidden');
+                phase3El.classList.remove('hidden');
+                
+                progressBarFill.style.width = '66.66%';
+                progressTextEl.textContent = `TAHAP 3/3 - TYPING QUIZ (1/${totalKanji})`;
+
+                tyQueue = shuffle(rawKanjiData);
+                tyCurrentIndex = 0;
+                scoreTy = 0;
+                
+                showTyQuestion();
             }
 
-            init();
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Mode - Evaluasi Mingguan</title>
-    <!-- Tailwind CSS v3 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: "Poppins", "Noto Sans JP", sans-serif !important;
-            font-optical-sizing: auto;
-            font-style: normal;
-        }
-        .quiz-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        /* Animasi popup */
-        #answer-modal { transition: opacity 0.2s ease; }
-        #answer-modal.show { opacity: 1; pointer-events: auto; }
-        #answer-modal .sheet { transform: translateY(24px) scale(0.98); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-        #answer-modal.show .sheet { transform: translateY(0) scale(1); }
-    </style>
-</head>
-<body class="bg-[#f5f5f0] flex items-center justify-center min-h-screen p-4 text-stone-800">
+            function showTyQuestion() {
+                const totalProgress = (totalKanji * 2) + tyCurrentIndex;
+                progressBarFill.style.width = `${(totalProgress / (totalKanji * 3)) * 100}%`;
+                progressTextEl.textContent = `TAHAP 3/3 - TYPING QUIZ (${tyCurrentIndex + 1}/${totalKanji})`;
 
-    <div id="loading" class="text-center animate-pulse">
-        <div class="text-4xl text-[#4a5d23] mb-4"><i class="fas fa-spinner fa-spin"></i></div>
-        <h2 class="text-xs font-bold text-stone-500 tracking-widest uppercase">Mempersiapkan Ujian...</h2>
-    </div>
-
-    <div id="app-container" class="container mx-auto max-w-lg hidden w-full">
-
-        <!-- Header & Progress Bar -->
-        <div class="mb-6">
-            <div class="flex justify-between items-center mb-3 px-1">
-                <a href="/" class="text-stone-500 hover:text-stone-800 font-semibold text-xs tracking-wider uppercase transition-colors">
-                    <i class="fas fa-times mr-1"></i> Keluar
-                </a>
-                <p id="progress-text" class="text-stone-500 font-bold text-[10px] tracking-widest uppercase"></p>
-            </div>
-            <div class="w-full bg-stone-200 rounded-full h-1.5 mb-4 overflow-hidden">
-                <div id="progress-bar-fill" class="bg-[#4a5d23] h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-        </div>
-
-        <!-- FASE KUIS -->
-        <div id="quiz-mode">
-            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
-                <div class="flex flex-col items-center justify-center min-h-[160px] mb-8 relative">
-                    <p id="quiz-prompt" class="text-stone-400 mb-6 font-bold text-[11px] uppercase tracking-widest text-center"></p>
-
-                    <div class="relative flex items-center justify-center w-full">
-                        <h2 id="quiz-subject" class="text-center text-stone-800 transition-all"></h2>
-                        <button id="play-subject-audio" class="absolute -right-2 top-0 w-8 h-8 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center hidden">
-                            <i class="fas fa-volume-up text-[10px]"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-            </div>
-        </div>
-
-        <!-- FASE HASIL -->
-        <div id="result-screen" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
-            <div id="result-icon" class="text-6xl mb-6"></div>
-            <h2 id="result-title" class="text-2xl font-bold mb-2 text-stone-800 tracking-tight"></h2>
-
-            <div class="bg-[#fafaf8] rounded-2xl p-6 my-6 border border-stone-100">
-                <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Skor Akhir</p>
-                <p id="result-score" class="text-4xl font-black text-[#4a5d23]"></p>
-            </div>
-
-            <p id="result-message" class="text-stone-500 text-xs mb-8 leading-relaxed"></p>
-
-            <a href="/" class="block w-full bg-stone-800 hover:bg-black text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">
-                Kembali ke Menu
-            </a>
-        </div>
-    </div>
-
-    <!-- POPUP DETAIL JAWABAN (benar / salah) -->
-    <div id="answer-modal" class="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 bg-stone-900/40 opacity-0 pointer-events-none">
-        <div class="sheet w-full max-w-md bg-white rounded-3xl shadow-xl border border-stone-200 p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div id="modal-icon" class="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg"></div>
-                <div>
-                    <h3 id="modal-title" class="font-bold text-lg leading-tight"></h3>
-                    <p id="modal-sub" class="text-xs text-stone-500"></p>
-                </div>
-            </div>
-
-            <div class="bg-[#fafaf8] border border-stone-100 rounded-2xl p-5 mb-5">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Kanji</p>
-                        <p id="modal-kanji" class="text-5xl font-bold text-stone-800 break-words"></p>
-                    </div>
-                    <button id="modal-audio" class="w-9 h-9 bg-white border border-stone-200 text-stone-500 rounded-full hover:bg-stone-100 transition-colors flex items-center justify-center shrink-0">
-                        <i class="fas fa-volume-up text-xs"></i>
-                    </button>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-stone-200">
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Furigana</p>
-                        <p id="modal-furigana" class="text-xl font-semibold text-[#4a5d23] break-words"></p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Arti</p>
-                        <p id="modal-meaning" class="text-sm font-semibold text-stone-700 capitalize break-words"></p>
-                    </div>
-                </div>
-            </div>
-
-            <button id="modal-next" class="w-full bg-stone-800 hover:bg-black text-white font-medium py-3.5 rounded-2xl transition-all text-sm tracking-wide uppercase"></button>
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const $ = (id) => document.getElementById(id);
-
-            const loadingEl = $('loading');
-            const appContainerEl = $('app-container');
-            const progressBarFill = $('progress-bar-fill');
-            const progressTextEl = $('progress-text');
-
-            const quizModeEl = $('quiz-mode');
-            const quizPromptEl = $('quiz-prompt');
-            const quizSubjectEl = $('quiz-subject');
-            const quizOptionsEl = $('quiz-options');
-            const playSubjectAudioBtn = $('play-subject-audio');
-
-            const resultScreenEl = $('result-screen');
-            const resultIconEl = $('result-icon');
-            const resultTitleEl = $('result-title');
-            const resultScoreEl = $('result-score');
-            const resultMessageEl = $('result-message');
-
-            // Modal
-            const modalEl = $('answer-modal');
-            const modalIconEl = $('modal-icon');
-            const modalTitleEl = $('modal-title');
-            const modalSubEl = $('modal-sub');
-            const modalKanjiEl = $('modal-kanji');
-            const modalFuriganaEl = $('modal-furigana');
-            const modalMeaningEl = $('modal-meaning');
-            const modalAudioBtn = $('modal-audio');
-            const modalNextBtn = $('modal-next');
-
-            let currentWeek = 0;
-            let quizData = [];
-            let currentQuizIndex = 0;
-            let score = 0;
-
-            function containsJapanese(text) {
-                return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(text);
+                tyCurrent = tyQueue[tyCurrentIndex];
+                tyAnswered = false;
+                
+                tyKanjiDisplay.textContent = tyCurrent.kanji;
+                tyInput.value = '';
+                tyInput.disabled = false;
+                tySubmit.disabled = false;
+                tyInput.className = tyInput.className.replace(/\s*!border-\S+/g, '').replace(/\s*!bg-\S+/g, '');
+                
+                playAudioBtnTy.onclick = () => playTTS(tyCurrent.kanji);
+                setTimeout(() => tyInput.focus(), 100);
             }
 
-            function playTTS(text, lang = 'ja-JP') {
-                if ('speechSynthesis' in window && text && containsJapanese(text)) {
-                    window.speechSynthesis.cancel();
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = lang;
-                    utterance.rate = 0.85;
-                    window.speechSynthesis.speak(utterance);
-                }
-            }
-
-            playSubjectAudioBtn.addEventListener('click', () => playTTS(quizSubjectEl.textContent));
-
-            async function init() {
-                const params = new URLSearchParams(window.location.search);
-                currentWeek = params.get('week');
-                if (!currentWeek) {
-                    window.location.href = '/';
+            function checkTyAnswer() {
+                if (tyAnswered || !tyCurrent) return;
+                const rawVal = tyInput.value.trim();
+                
+                if (rawVal === '') {
+                    tyInput.placeholder = 'Isi jawaban dahulu!';
                     return;
                 }
 
-                try {
-                    const res = await fetch(`/api/quiz/week/${currentWeek}`);
-                    if (!res.ok) throw new Error('Gagal memuat data kuis');
-                    quizData = await res.json();
+                tyAnswered = true;
+                tyInput.disabled = true;
+                tySubmit.disabled = true;
 
-                    loadingEl.classList.add('hidden');
-                    appContainerEl.classList.remove('hidden');
-                    startQuiz();
-                } catch (error) {
-                    loadingEl.classList.remove('animate-pulse');
-                    loadingEl.innerHTML = `
-                        <div class="text-4xl text-rose-500 mb-4"><i class="fas fa-exclamation-circle"></i></div>
-                        <h2 class="text-sm font-semibold text-rose-600 mb-4"></h2>
-                        <a href="/" class="text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs uppercase">Kembali</a>
-                    `;
-                    loadingEl.querySelector('h2').textContent = error.message;
-                }
+                const isCorrect = toHira(rawVal) === toHira(tyCurrent.furigana);
+                if (isCorrect) scoreTy++;
+                
+                tyInput.classList.add(isCorrect ? '!border-emerald-500' : '!border-rose-400', isCorrect ? '!bg-emerald-50' : '!bg-rose-50');
+                
+                showAnswerModal(tyCurrent, isCorrect, () => {
+                    tyCurrentIndex++;
+                    if (tyCurrentIndex < totalKanji) showTyQuestion();
+                    else showResult();
+                }, isCorrect ? null : rawVal);
             }
 
-            function startQuiz() {
-                currentQuizIndex = 0;
-                score = 0;
-                showQuestion();
+            tySubmit.addEventListener('click', checkTyAnswer);
+            tyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkTyAnswer(); });
+
+            // ==========================================
+            // TOAST POPUP (Hilang otomatis)
+            // ==========================================
+            let toastTimer = null;
+            function showAnswerModal(card, isCorrect, onClose, yourAnswer) {
+                modalStatus.className = `px-4 py-2.5 flex items-center gap-2 text-white ${isCorrect ? 'bg-emerald-600' : 'bg-rose-500'}`;
+                modalStatusIcon.className = `fas ${isCorrect ? 'fa-circle-check' : 'fa-circle-xmark'}`;
+                modalStatusTitle.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
+                modalStatusSub.textContent = isCorrect ? '' : (yourAnswer ? `Jawaban Anda: ${yourAnswer}` : '');
+                
+                modalKanji.textContent = card.kanji;
+                modalFurigana.textContent = card.furigana;
+                modalMeaning.textContent = card.meaning || '-';
+                
+                // Durasi tayang: 1.5 detik jika benar, 2.5 detik jika salah (agar sempat dibaca)
+                const duration = isCorrect ? 1500 : 2500; 
+                
+                toastCard.classList.remove('toast-out');
+                modalEl.classList.remove('hidden');
+                
+                toastBar.style.animation = 'none';
+                void toastBar.offsetWidth; // trigger reflow
+                toastBar.style.animation = `toastBar ${duration}ms linear forwards`;
+                
+                playTTS(card.kanji);
+                clearTimeout(toastTimer);
+                
+                toastTimer = setTimeout(() => {
+                    toastCard.classList.add('toast-out');
+                    setTimeout(() => {
+                        modalEl.classList.add('hidden');
+                        window.speechSynthesis && window.speechSynthesis.cancel();
+                        if (onClose) onClose();
+                    }, 250);
+                }, duration);
             }
 
-            function showQuestion() {
-                const progressPercent = (currentQuizIndex / quizData.length) * 100;
-                progressBarFill.style.width = `${progressPercent}%`;
-                progressTextEl.textContent = `SOAL ${currentQuizIndex + 1} / ${quizData.length}`;
-
-                const q = quizData[currentQuizIndex];
-
-                quizPromptEl.textContent = q.prompt;
-                quizSubjectEl.textContent = q.subject;
-                playSubjectAudioBtn.classList.toggle('hidden', !containsJapanese(q.subject));
-
-                // Ukuran font subject menyesuaikan panjang teks (semua soal berbahasa Jepang)
-                if (q.subject.length > 6) {
-                    quizSubjectEl.className = "text-3xl md:text-4xl font-bold text-[#4a5d23] break-words px-4 w-full text-center";
-                } else if (q.subject.length > 3) {
-                    quizSubjectEl.className = "text-5xl md:text-6xl font-bold text-stone-800 break-words text-center";
-                } else {
-                    quizSubjectEl.className = "text-6xl md:text-7xl font-bold text-stone-800 text-center";
-                }
-
-                quizOptionsEl.innerHTML = '';
-
-                q.options.forEach(option => {
-                    const button = document.createElement('button');
-                    button.textContent = option;
-
-                    // Semua opsi adalah teks Jepang (furigana / kanji)
-                    const optionStyle = option.length > 6
-                        ? "text-xl font-bold py-6 px-3"
-                        : "text-3xl font-bold py-6 px-4";
-
-                    button.className = `quiz-btn w-full ${optionStyle} bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center hover:bg-white hover:border-[#4a5d23] hover:shadow-sm text-stone-700 active:scale-95 min-h-[80px] flex items-center justify-center break-words`;
-
-                    button.onclick = () => checkAnswer(option, button);
-                    quizOptionsEl.appendChild(button);
-                });
-            }
-
-            function checkAnswer(selectedOption, button) {
-                const q = quizData[currentQuizIndex];
-                const correctAnswer = q.answer;
-                const isCorrect = (selectedOption === correctAnswer);
-
-                const buttons = Array.from(quizOptionsEl.querySelectorAll('button'));
-                buttons.forEach(btn => {
-                    btn.disabled = true;
-                    btn.classList.remove('hover:bg-white', 'hover:border-[#4a5d23]', 'hover:shadow-sm', 'active:scale-95');
-
-                    if (btn.textContent === correctAnswer) {
-                        btn.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
-                        btn.classList.add('bg-[#4a5d23]', 'border-[#3d4d1d]', 'text-white', 'shadow-md');
-                    }
-                });
-
-                if (isCorrect) {
-                    score++;
-                    playTTS(q.card.furigana);
-                } else {
-                    button.classList.remove('border-stone-200', 'bg-[#fafaf8]', 'text-stone-700');
-                    button.classList.add('bg-rose-500', 'border-rose-600', 'text-white', 'shadow-md');
-                }
-
-                showModal(isCorrect, selectedOption, q);
-            }
-
-            function showModal(isCorrect, selectedOption, q) {
-                modalIconEl.className = `w-10 h-10 rounded-full flex items-center justify-center text-white text-lg ${isCorrect ? 'bg-[#4a5d23]' : 'bg-rose-500'}`;
-                modalIconEl.innerHTML = `<i class="fas ${isCorrect ? 'fa-check' : 'fa-xmark'}"></i>`;
-                modalTitleEl.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
-                modalTitleEl.className = `font-bold text-lg leading-tight ${isCorrect ? 'text-[#4a5d23]' : 'text-rose-600'}`;
-                modalSubEl.textContent = isCorrect ? 'Jawabanmu tepat.' : `Jawabanmu: ${selectedOption}`;
-
-                modalKanjiEl.textContent = q.card.kanji;
-                modalFuriganaEl.textContent = q.card.furigana;
-                modalMeaningEl.textContent = q.card.meaning;
-
-                const isLast = currentQuizIndex === quizData.length - 1;
-                modalNextBtn.textContent = isLast ? 'Lihat Hasil' : 'Soal Berikutnya';
-
-                modalAudioBtn.onclick = () => playTTS(q.card.furigana);
-
-                modalEl.classList.add('show');
-                modalNextBtn.focus();
-            }
-
-            modalNextBtn.addEventListener('click', () => {
-                modalEl.classList.remove('show');
-                window.speechSynthesis && window.speechSynthesis.cancel();
-                currentQuizIndex++;
-                if (currentQuizIndex < quizData.length) {
-                    showQuestion();
-                } else {
-                    showResult();
-                }
-            });
-
+            // ==========================================
+            // HASIL AKHIR
+            // ==========================================
             function showResult() {
                 progressBarFill.style.width = '100%';
-
-                quizModeEl.classList.add('hidden');
+                progressTextEl.textContent = 'EVALUASI SELESAI';
+                
+                phase3El.classList.add('hidden');
                 resultScreenEl.classList.remove('hidden');
-                progressTextEl.textContent = 'HASIL EVALUASI';
 
-                const percentage = Math.round((score / quizData.length) * 100);
+                const maxPossibleScore = totalKanji * 3;
+                const totalScore = scoreMC + scoreMatch + scoreTy;
+                const percentage = Math.round((totalScore / maxPossibleScore) * 100);
                 const PASSING_GRADE = 80;
 
                 resultScoreEl.textContent = `${percentage}%`;
+                $('detail-mc').textContent = scoreMC;
+                $('detail-match').textContent = scoreMatch;
+                $('detail-ty').textContent = scoreTy;
 
                 if (percentage >= PASSING_GRADE) {
                     resultIconEl.innerHTML = '<i class="fas fa-medal text-yellow-400 drop-shadow-md"></i>';
                     resultTitleEl.textContent = 'Luar Biasa!';
-                    resultMessageEl.innerHTML = `Anda berhasil menjawab <b>${score} dari ${quizData.length}</b> soal dengan benar. Progress minggu ke-${currentWeek} telah disimpan.`;
-                    saveProgress();
+                    resultMessageEl.innerHTML = `Anda berhasil memperoleh total <b>${totalScore} dari ${maxPossibleScore}</b> poin. Progress evaluasi minggu ke-${currentWeek} telah disimpan.`;
+                    
+                    const progress = JSON.parse(localStorage.getItem('kanjiProgress')) || {};
+                    progress[currentWeek] = true;
+                    localStorage.setItem('kanjiProgress', JSON.stringify(progress));
                 } else {
                     resultIconEl.innerHTML = '<i class="fas fa-seedling text-amber-500"></i>';
                     resultTitleEl.textContent = 'Terus Bertumbuh!';
-                    resultMessageEl.innerHTML = `Anda menjawab <b>${score} dari ${quizData.length}</b> benar. Syarat kelulusan adalah ${PASSING_GRADE}%. Ulangi kembali materi di Mode Belajar.`;
+                    resultMessageEl.innerHTML = `Anda memperoleh <b>${totalScore} dari ${maxPossibleScore}</b> poin. Syarat kelulusan adalah ${PASSING_GRADE}%. Coba latihan lagi di Mode Belajar.`;
                 }
-            }
-
-            function saveProgress() {
-                const progress = JSON.parse(localStorage.getItem('kanjiProgress')) || {};
-                progress[currentWeek] = true;
-                localStorage.setItem('kanjiProgress', JSON.stringify(progress));
             }
 
             init();

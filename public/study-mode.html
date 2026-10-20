@@ -4,77 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Mode - SRS & Learn</title>
-    <!-- Tailwind CSS v3 -->
+    <!-- Menggunakan Tailwind CSS v3 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: "Noto Sans JP", sans-serif !important;
-            font-optical-sizing: auto;
-            font-style: normal;
-        }
-        
-        /* -------------------------------------
-           Custom Scrollbar
-        -------------------------------------- */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #d6d3d1;
-            border-radius: 10px;
-        }
-
-        /* -------------------------------------
-           Active Recall Blur Effect
-        -------------------------------------- */
-        .reveal-content {
-            filter: blur(6px);
-            opacity: 0.7;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            user-select: none;
-        }
-        .reveal-content.revealed {
-            filter: blur(0);
-            opacity: 1;
-            user-select: auto;
-        }
-        .reveal-content.revealed .tap-hint { 
-            display: none; 
-        }
-
-        /* -------------------------------------
-           Kartu SRS Utama (Flashcard Besar)
-        -------------------------------------- */
-        .perspective-1000 { perspective: 1000px; }
-        .flashcard {
-            transform-style: preserve-3d;
-            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-        }
-        .flashcard.is-flipped { transform: rotateY(180deg); }
-        .flashcard-face {
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-        .flashcard-back { transform: rotateY(180deg); }
-
-        /* -------------------------------------
-           Kartu Mini Game (Matching Cards)
-        -------------------------------------- */
-        .preserve-3d { transform-style: preserve-3d; }
-        .backface-hidden {
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-        .rotate-y-180 { transform: rotateY(180deg); }
-        
-        /* Mencegah highlight biru saat di tap pada mobile */
-        .mc-card { -webkit-tap-highlight-color: transparent; }
-    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: "Poppins", "Noto Sans JP", sans-serif !important; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 10px; }
+        
+        /* Active Recall Blur */
+        .reveal-content { filter: blur(6px); opacity: 0.7; transition: all 0.3s ease; cursor: pointer; user-select: none; }
+        .reveal-content.revealed { filter: blur(0); opacity: 1; user-select: auto; }
+        .reveal-content.revealed .tap-hint { display: none; }
+        
+        /* Flashcard SRS */
+        .perspective-1000 { perspective: 1000px; }
+        .flashcard { transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+        .flashcard.is-flipped { transform: rotateY(180deg); }
+        .flashcard-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .flashcard-back { transform: rotateY(180deg); }
+        
+        /* Matching Cards */
+        .preserve-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .mc-card { -webkit-tap-highlight-color: transparent; }
+        
+        /* Toast Alert */
+        @keyframes popIn { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+        .toast-in { animation: popIn .22s ease-out; }
+        .toast-out { opacity: 0; transform: translateY(-12px); transition: all .25s ease; }
+        @keyframes toastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+    </style>
 </head>
 <body class="bg-[#f5f5f0] flex items-center justify-center min-h-screen p-3 md:p-4 text-stone-800">
 
@@ -82,26 +46,20 @@
         <h2 class="text-xl font-medium text-stone-500 animate-pulse tracking-widest uppercase text-xs">Menyiapkan materi...</h2>
     </div>
 
-    <div id="app-container" class="container mx-auto max-w-lg hidden">
+    <div id="app-container" class="container mx-auto max-w-lg hidden pb-10">
         <!-- Header -->
         <div class="flex justify-between items-center mb-6 px-2">
             <a href="/" class="text-stone-500 hover:text-stone-800 font-semibold text-xs tracking-wider uppercase transition-colors"><i class="fas fa-arrow-left mr-2"></i>Menu</a>
             <p id="progress-text" class="text-stone-400 font-bold text-[10px] uppercase tracking-widest"></p>
         </div>
 
-        <!-- ==========================================
-             1. FASE LEARN (ACTIVE RECALL PRE-TEST) 
-        =========================================== -->
+        <!-- 1. FASE LEARN (ACTIVE RECALL) -->
         <div id="learn-view" class="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden flex flex-col max-h-[85vh]">
             <div class="p-6 border-b border-stone-100 bg-[#fafaf8]">
                 <h2 class="text-lg font-semibold text-stone-800">Pre-Test Materi</h2>
-                <p class="text-[11px] text-stone-500 mt-1">Tebak arti & cara bacanya di dalam hati, lalu <span class="font-bold text-[#4a5d23]">ketuk area yang buram</span> untuk memeriksa.</p>
+                <p class="text-[11px] text-stone-500 mt-1">Tebak <span class="font-bold">cara baca (furigana)</span> di dalam hati, lalu <span class="font-bold text-[#4a5d23]">ketuk area yang buram</span> untuk memeriksa.</p>
             </div>
-            
-            <div id="learn-list" class="flex-grow overflow-y-auto p-4 space-y-3 bg-[#fafaf8]">
-                <!-- List di-render via JS -->
-            </div>
-
+            <div id="learn-list" class="flex-grow overflow-y-auto p-4 space-y-3 bg-[#fafaf8]"></div>
             <div class="p-4 bg-white border-t border-stone-100">
                 <button id="start-srs-btn" class="w-full bg-[#4a5d23] hover:bg-[#3d4d1d] text-white font-medium py-4 rounded-2xl transition-all shadow-md active:scale-95 text-sm tracking-wide uppercase">
                     Mulai Sesi Review
@@ -109,31 +67,21 @@
             </div>
         </div>
 
-        <!-- ==========================================
-             2. FASE SRS, MUSCLE MEMORY & MATCHING
-        =========================================== -->
+        <!-- FASE LATIHAN & SRS WRAPPER -->
         <div id="flashcard-srs-mode" class="hidden">
             
-            <!-- A. Result Screen -->
-            <div id="session-complete" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
-                <div class="text-5xl mb-6 text-[#4a5d23]"><i class="fas fa-seedling"></i></div>
-                <h2 class="text-xl font-semibold mb-2 text-stone-800">Sesi Selesai</h2>
-                <p class="text-stone-500 text-xs mb-8 px-4 leading-relaxed">Otak Anda telah dilatih. Istirahat sejenak sebelum melanjutkan ke kuis mingguan.</p>
-                <a id="quiz-link" href="#"
-                    class="block w-full bg-[#4a5d23] hover:bg-[#3d4d1d] text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">Kuis Evaluasi</a>
-            </div>
-
-            <!-- B. Flashcard SRS -->
+            <!-- A. Flashcard SRS -->
             <div id="card-view" class="perspective-1000 hidden">
+                <div class="text-center mb-6">
+                    <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Spaced Repetition System</span>
+                </div>
                 <div id="flashcard" class="flashcard relative w-full h-80 md:h-96 cursor-pointer">
-                    <!-- Sisi Depan -->
                     <div id="flashcard-front" class="flashcard-face absolute w-full h-full bg-white rounded-3xl shadow-sm flex flex-col items-center justify-center border border-stone-200">
                         <div id="front-kanji" class="text-7xl text-stone-800 font-bold mb-4"></div>
                         <button id="play-audio-btn-front" class="absolute bottom-6 right-6 w-12 h-12 bg-stone-100 text-stone-500 rounded-full hover:bg-[#4a5d23] hover:text-white transition-colors flex items-center justify-center">
                             <i class="fas fa-volume-up"></i>
                         </button>
                     </div>
-                    <!-- Sisi Belakang -->
                     <div id="flashcard-back" class="flashcard-back flashcard-face absolute w-full h-full bg-[#4a5d23] text-[#f5f5f0] rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center border-4 border-[#3d4d1d]">
                         <p id="back-furigana" class="text-4xl font-bold w-full px-4 break-words tracking-wide"></p>
                         <div class="h-[2px] w-16 bg-[#a3b18a] my-6 flex-shrink-0 opacity-50"></div>
@@ -144,7 +92,6 @@
                 </div>
                 <p class="text-center mt-6 text-[10px] text-stone-400 font-medium uppercase tracking-widest">Ketuk kartu untuk mengungkap jawaban</p>
                 
-                <!-- Tombol Penilaian SRS -->
                 <div id="rating-buttons" class="grid grid-cols-3 gap-3 mt-8">
                     <button data-rating="forget" class="bg-white hover:bg-rose-50 text-rose-600 border border-stone-200 hover:border-rose-200 font-semibold py-4 rounded-2xl transition-all text-[11px] uppercase tracking-wider shadow-sm">Lupa</button>
                     <button data-rating="hard" class="bg-white hover:bg-amber-50 text-amber-600 border border-stone-200 hover:border-amber-200 font-semibold py-4 rounded-2xl transition-all text-[11px] uppercase tracking-wider shadow-sm">Sulit</button>
@@ -152,125 +99,194 @@
                 </div>
             </div>
 
-            <!-- C. Muscle Memory (Ketik) -->
-            <div id="muscle-memory-view" class="hidden bg-white p-8 rounded-3xl shadow-sm border border-stone-200">
-                <div class="text-center mb-8">
-                    <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Active Recall</span>
-                    <h3 id="mm-instruction-title" class="text-base font-semibold text-[#4a5d23] mt-5">Ketik...</h3>
+            <!-- B. Tahap 1 - Pilihan Ganda -->
+            <div id="muscle-memory-view" class="hidden bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+                <div class="text-center mb-6">
+                    <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Tahap 1 • Pilihan Ganda</span>
+                    <h3 id="mm-instruction-title" class="text-base font-semibold text-[#4a5d23] mt-5"></h3>
                     <p id="mm-instruction-desc" class="text-[11px] text-stone-400 mt-1"></p>
                 </div>
-                <div class="relative">
-                    <div id="mm-kanji-display" class="text-6xl font-bold text-center mb-8 text-stone-800"></div>
+                <div class="relative mb-8">
+                    <div id="mm-subject-display" class="text-6xl font-bold text-center text-stone-800 break-words px-10"></div>
                     <button id="play-audio-btn-mm" class="absolute top-0 right-0 w-10 h-10 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center">
                         <i class="fas fa-volume-up text-xs"></i>
                     </button>
                 </div>
+                <div id="mm-options" class="grid grid-cols-2 gap-3"></div>
+            </div>
+
+            <!-- C. Tahap 2 - Matching Cards -->
+            <div id="matching-cards-view" class="hidden bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+                <div class="text-center mb-6">
+                    <span class="bg-[#f1f4eb] text-[#4a5d23] text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Tahap 2 • Matching Cards</span>
+                    <h3 class="text-base font-semibold text-stone-800 mt-4">Temukan Pasangannya</h3>
+                    <p class="text-[11px] text-stone-400 mt-1">Balik kartu dan cocokkan Kanji dengan Furigana-nya.</p>
+                </div>
+                <div id="mc-grid" class="grid grid-cols-4 gap-2 md:gap-3"></div>
+            </div>
+
+            <!-- D. Tahap 3 - Typing Quiz -->
+            <div id="typing-view" class="hidden bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
+                <div class="text-center mb-6">
+                    <span class="bg-stone-100 text-stone-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Tahap 3 • Typing Quiz</span>
+                    <h3 class="text-base font-semibold text-[#4a5d23] mt-5">Ketik Cara Baca (Furigana)</h3>
+                    <p class="text-[11px] text-stone-400 mt-1">Gunakan huruf Hiragana / Romaji</p>
+                </div>
+                <div class="relative mb-8">
+                    <div id="ty-kanji-display" class="text-6xl font-bold text-center text-stone-800 break-words px-10"></div>
+                    <button id="play-audio-btn-ty" class="absolute top-0 right-0 w-10 h-10 bg-stone-50 text-stone-400 rounded-full hover:bg-stone-200 transition-colors flex items-center justify-center">
+                        <i class="fas fa-volume-up text-xs"></i>
+                    </button>
+                </div>
                 <div class="space-y-4">
-                    <input type="text" id="mm-input" autocomplete="off" class="w-full p-4 bg-[#fafaf8] border border-stone-200 rounded-2xl text-center text-lg focus:border-[#4a5d23] focus:bg-white focus:ring-0 outline-none transition-all font-medium" placeholder="Ketik di sini...">
-                    <button id="mm-submit" class="w-full bg-stone-800 text-white font-medium py-4 rounded-2xl hover:bg-black transition-all text-sm tracking-wide uppercase shadow-sm">Periksa</button>
-                    <p id="mm-feedback" class="text-center font-medium min-h-[1.5rem] h-auto text-[11px] break-words mt-3 px-2 transition-colors"></p>
+                    <input type="text" id="ty-input" autocomplete="off" autocapitalize="off" class="w-full p-4 bg-[#fafaf8] border-2 border-stone-200 rounded-2xl text-center text-lg focus:border-[#4a5d23] focus:bg-white focus:ring-0 outline-none transition-all font-medium" placeholder="Ketik disini...">
+                    <button id="ty-submit" class="w-full bg-stone-800 text-white font-medium py-4 rounded-2xl hover:bg-black transition-all text-sm tracking-wide uppercase shadow-sm">Periksa</button>
                 </div>
             </div>
 
-            <!-- D. NEW: Matching Cards Mini Game -->
-            <div id="matching-cards-view" class="hidden bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-200">
-                <div class="text-center mb-6">
-                    <span class="bg-[#f1f4eb] text-[#4a5d23] text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest">Mini Game</span>
-                    <h3 class="text-base font-semibold text-stone-800 mt-4">Temukan Pasangannya</h3>
-                    <p class="text-[11px] text-stone-400 mt-1">Balik kartu dan cocokkan Kanji dengan Artinya.</p>
-                </div>
+            <!-- E. Result Screen -->
+            <div id="session-complete" class="hidden text-center bg-white p-10 rounded-3xl shadow-sm border border-stone-200">
+                <div class="text-5xl mb-6 text-[#4a5d23]"><i class="fas fa-seedling"></i></div>
+                <h2 class="text-xl font-bold mb-2 text-stone-800">Sesi Latihan Selesai!</h2>
+                <p class="text-stone-500 text-xs mb-6 px-4 leading-relaxed">Otak Anda telah dilatih. Berikut adalah perolehan skor Anda di sesi ini.</p>
                 
-                <!-- Grid untuk Kartu (3 Kolom) -->
-                <div id="mc-grid" class="grid grid-cols-3 gap-3 md:gap-4">
-                    <!-- Kartu-kartu akan di-generate via JavaScript -->
+                <div class="bg-[#fafaf8] rounded-2xl p-4 my-6 border border-stone-100 flex justify-around text-center text-[10px] uppercase font-bold text-stone-500">
+                    <div>
+                        <span class="block text-2xl font-black text-[#4a5d23]" id="score-mc">0</span>
+                        PG
+                    </div>
+                    <div class="border-l border-r border-stone-200 px-4">
+                        <span class="block text-2xl font-black text-[#4a5d23]" id="score-match">0</span>
+                        Match
+                    </div>
+                    <div>
+                        <span class="block text-2xl font-black text-[#4a5d23]" id="score-ty">0</span>
+                        Ketik
+                    </div>
                 </div>
+
+                <a id="quiz-link" href="#" class="block w-full bg-[#4a5d23] hover:bg-[#3d4d1d] text-white font-medium py-4 rounded-2xl transition-all shadow-sm text-sm tracking-wide uppercase">Evaluasi Mingguan</a>
             </div>
 
         </div>
     </div>
 
+    <!-- TOAST POPUP NOTIFICATION (Hilang otomatis) -->
+    <div id="answer-modal" class="hidden fixed inset-x-0 top-4 z-50 flex justify-center px-4 pointer-events-none">
+        <div id="toast-card" class="toast-in w-full max-w-sm bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden">
+            <div id="modal-status" class="px-4 py-2.5 flex items-center gap-2 text-white">
+                <i id="modal-status-icon" class="fas"></i>
+                <p id="modal-status-title" class="font-bold text-xs tracking-wide"></p>
+                <p id="modal-status-sub" class="text-[11px] opacity-90 ml-auto truncate"></p>
+            </div>
+            <div class="px-4 py-3 flex items-center gap-4">
+                <div id="modal-kanji" class="text-4xl font-bold text-stone-800 flex-shrink-0"></div>
+                <div class="min-w-0">
+                    <p id="modal-furigana" class="text-lg font-bold text-[#4a5d23] break-words"></p>
+                    <p id="modal-meaning" class="text-xs text-stone-500 capitalize break-words line-clamp-2"></p>
+                </div>
+            </div>
+            <div class="h-1 bg-stone-100"><div id="toast-bar" class="h-full bg-[#a3b18a] origin-left"></div></div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Elements
-            const loadingEl = document.getElementById('loading');
-            const appContainerEl = document.getElementById('app-container');
-            const learnViewEl = document.getElementById('learn-view');
-            const learnListEl = document.getElementById('learn-list');
-            const startSrsBtn = document.getElementById('start-srs-btn');
+            // ---------- Elemen UI ----------
+            const $ = (id) => document.getElementById(id);
+            const loadingEl = $('loading');
+            const appContainerEl = $('app-container');
+            const learnViewEl = $('learn-view');
+            const learnListEl = $('learn-list');
+            const startSrsBtn = $('start-srs-btn');
+            const flashcardSrsModeEl = $('flashcard-srs-mode');
+            const flashcardEl = $('flashcard');
+            const frontKanji = $('front-kanji');
+            const backFurigana = $('back-furigana');
+            const backMeaning = $('back-meaning');
+            const ratingButtonsEl = $('rating-buttons');
+            const progressTextEl = $('progress-text');
+            const sessionCompleteEl = $('session-complete');
+            const cardViewEl = $('card-view');
+            const quizLinkEl = $('quiz-link');
             
-            const flashcardSrsModeEl = document.getElementById('flashcard-srs-mode');
-            const flashcardEl = document.getElementById('flashcard');
-            const frontKanji = document.getElementById('front-kanji');
-            const backFurigana = document.getElementById('back-furigana');
-            const backMeaning = document.getElementById('back-meaning');
+            const practiceView = $('muscle-memory-view');
+            const mmSubjectDisplay = $('mm-subject-display');
+            const mmInstructionTitle = $('mm-instruction-title');
+            const mmInstructionDesc = $('mm-instruction-desc');
+            const mmOptionsEl = $('mm-options');
             
-            const ratingButtonsEl = document.getElementById('rating-buttons');
-            const progressTextEl = document.getElementById('progress-text');
-            const sessionCompleteEl = document.getElementById('session-complete');
-            const cardViewEl = document.getElementById('card-view');
-            const quizLinkEl = document.getElementById('quiz-link');
-
-            const muscleMemoryView = document.getElementById('muscle-memory-view');
-            const mmKanjiDisplay = document.getElementById('mm-kanji-display');
-            const mmInstructionTitle = document.getElementById('mm-instruction-title');
-            const mmInstructionDesc = document.getElementById('mm-instruction-desc');
-            const mmInput = document.getElementById('mm-input');
-            const mmSubmit = document.getElementById('mm-submit');
-            const mmFeedback = document.getElementById('mm-feedback');
+            const matchingCardsView = $('matching-cards-view');
+            const mcGrid = $('mc-grid');
             
-            const playAudioBtnFront = document.getElementById('play-audio-btn-front');
-            const playAudioBtnMm = document.getElementById('play-audio-btn-mm');
+            const typingView = $('typing-view');
+            const tyKanjiDisplay = $('ty-kanji-display');
+            const tyInput = $('ty-input');
+            const tySubmit = $('ty-submit');
+            
+            // Popup Toast
+            const modalEl = $('answer-modal');
+            const modalStatus = $('modal-status');
+            const modalStatusIcon = $('modal-status-icon');
+            const modalStatusTitle = $('modal-status-title');
+            const modalStatusSub = $('modal-status-sub');
+            const modalKanji = $('modal-kanji');
+            const modalFurigana = $('modal-furigana');
+            const modalMeaning = $('modal-meaning');
+            const toastCard = $('toast-card');
+            const toastBar = $('toast-bar');
 
-            // Elements Matching Cards
-            const matchingCardsView = document.getElementById('matching-cards-view');
-            const mcGrid = document.getElementById('mc-grid');
-
-            // State Global
+            // ---------- State ----------
             let currentWeek = 0;
             let srsData = {};
             let fullWeeklyKanji = [];
-            
-            // State SRS & MM
             let reviewQueue = [];
             let currentCard = null;
-            let mmQueue = []; 
-            let currentMMType = 'furigana'; 
-            const srsIntervals = [1, 3, 7, 14, 30];
+            let totalKanji = 0;
+            
+            // Tracking Skor
+            let scoreMC = 0;
+            let scoreMatch = 0;
+            let scoreTY = 0;
 
-            // State Matching Cards
+            // Tahap 1 State
+            let mmQueue = [];
+            let mmCurrent = null;
+            let mmTurn = 0;
+            let mmAnswered = false;
+
+            // Tahap 2 State
             let mcCards = [];
             let mcFlippedCards = [];
             let mcMatchedCount = 0;
-            let mcTotalPairs = 0;
+            let mcMistakes = 0;
             let mcIsLocked = false;
 
-            async function init() {
-                const params = new URLSearchParams(window.location.search);
-                currentWeek = params.get('week');
-                if (!currentWeek) { window.location.href = '/'; return; }
-                quizLinkEl.href = `/quiz?week=${currentWeek}`;
-                srsData = JSON.parse(localStorage.getItem('kanjiSRSData')) || {};
+            // Tahap 3 State
+            let tyQueue = [];
+            let tyCurrent = null;
+            let tyAnswered = false;
 
-                try {
-                    const res = await fetch(`/api/kanji/week/${currentWeek}`);
-                    if (!res.ok) throw new Error('Data tidak ditemukan');
-                    const data = await res.json();
+            const srsIntervals = [1, 3, 7, 14, 30];
 
-                    fullWeeklyKanji = data.kanjiData; 
-                    prepareReviewQueue(data.kanjiData);
-
-                    renderLearnMode();
-                    loadingEl.classList.add('hidden');
-                    appContainerEl.classList.remove('hidden');
-
-                } catch (error) {
-                    loadingEl.innerHTML = `<h2 class="text-sm font-semibold text-rose-500">${error.message}</h2><a href="/" class="mt-4 inline-block text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs">Kembali</a>`;
+            // ---------- Utilities ----------
+            const shuffle = (arr) => {
+                const a = [...arr];
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
                 }
+                return a;
+            };
+
+            const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            
+            function containsJapanese(text) {
+                return /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf]/.test(text);
             }
 
-            // Text To Speech API
             function playTTS(text, lang = 'ja-JP') {
-                if ('speechSynthesis' in window) {
+                if ('speechSynthesis' in window && text && containsJapanese(text)) {
                     window.speechSynthesis.cancel();
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.lang = lang;
@@ -278,24 +294,50 @@
                     window.speechSynthesis.speak(utterance);
                 }
             }
+            window.playTTS = playTTS; 
 
-            // Fungsi Buka Blur Active Recall (Learn Mode)
-            window.toggleReveal = function(element) {
-                element.classList.toggle('revealed');
-                if (element.classList.contains('revealed')) {
-                    const kanji = element.getAttribute('data-kanji');
-                    playTTS(kanji);
+            // ---------- Init Data ----------
+            async function init() {
+                const params = new URLSearchParams(window.location.search);
+                currentWeek = params.get('week');
+                if (!currentWeek) { window.location.href = '/'; return; }
+                
+                quizLinkEl.href = `/quiz?week=${currentWeek}`;
+                
+                try { srsData = JSON.parse(localStorage.getItem('kanjiSRSData')) || {}; } catch { srsData = {}; }
+                
+                try {
+                    const res = await fetch(`/api/kanji/week/${currentWeek}`);
+                    if (!res.ok) throw new Error('Data tidak ditemukan');
+                    const data = await res.json();
+                    fullWeeklyKanji = data.kanjiData;
+                    totalKanji = fullWeeklyKanji.length;
+
+                    prepareReviewQueue(data.kanjiData);
+                    renderLearnMode();
+                    
+                    loadingEl.classList.add('hidden');
+                    appContainerEl.classList.remove('hidden');
+                } catch (error) {
+                    loadingEl.innerHTML = `<h2 class="text-sm font-semibold text-rose-500">${escapeHTML(error.message)}</h2><a href="/" class="mt-4 inline-block text-stone-500 font-bold border-b border-stone-500 pb-1 text-xs">Kembali</a>`;
                 }
+            }
+
+            // ==========================================
+            // 0. PRE-TEST (LEARN MODE)
+            // ==========================================
+            window.toggleReveal = function (element) {
+                element.classList.toggle('revealed');
+                if (element.classList.contains('revealed')) playTTS(element.getAttribute('data-kanji'));
             };
 
-            // Render Learn Mode
             function renderLearnMode() {
                 learnListEl.innerHTML = fullWeeklyKanji.map(item => `
                     <div class="flex items-center gap-5 p-4 bg-white rounded-2xl border border-stone-100 shadow-sm">
-                        <div class="text-3xl font-bold text-stone-800 w-12 text-center flex-shrink-0 cursor-pointer" onclick="playTTS('${item.kanji}')">${item.kanji}</div>
-                        <div class="flex-grow min-w-0 reveal-content bg-stone-100 rounded-xl p-3" data-kanji="${item.kanji}" onclick="toggleReveal(this)">
-                            <p class="text-[#4a5d23] font-bold text-sm truncate">${item.furigana}</p>
-                            <p class="text-stone-500 text-xs capitalize break-words line-clamp-2 mt-1">${item.meaning}</p>
+                        <div class="text-3xl font-bold text-stone-800 w-12 text-center flex-shrink-0 cursor-pointer" data-kanji="${escapeHTML(item.kanji)}" onclick="playTTS(this.dataset.kanji)">${escapeHTML(item.kanji)}</div>
+                        <div class="flex-grow min-w-0 reveal-content bg-stone-100 rounded-xl p-3" data-kanji="${escapeHTML(item.kanji)}" onclick="toggleReveal(this)">
+                            <p class="text-[#4a5d23] font-bold text-sm truncate">${escapeHTML(item.furigana)}</p>
+                            <p class="text-stone-500 text-xs capitalize break-words line-clamp-2 mt-1">${escapeHTML(item.meaning)}</p>
                             <p class="text-[8px] text-stone-400 uppercase mt-2 font-bold tracking-widest text-center tap-hint">Ketuk untuk mengungkap</p>
                         </div>
                     </div>
@@ -305,9 +347,8 @@
             startSrsBtn.addEventListener('click', () => {
                 learnViewEl.classList.add('hidden');
                 flashcardSrsModeEl.classList.remove('hidden');
-                
                 if (reviewQueue.length === 0) {
-                    startMuscleMemory();
+                    startPhase1MC();
                 } else {
                     cardViewEl.classList.remove('hidden');
                     showNextCard();
@@ -315,68 +356,51 @@
             });
 
             // ==========================================
-            // LOGIKA SRS (Flashcard)
+            // 1. SRS FLASHCARD
             // ==========================================
             function prepareReviewQueue(weeklyKanji) {
                 const today = new Date().setHours(0, 0, 0, 0);
-                reviewQueue = weeklyKanji.filter(kanji => {
-                    const cardData = srsData[kanji.kanji];
+                reviewQueue = shuffle(weeklyKanji.filter(k => {
+                    const cardData = srsData[k.kanji];
                     if (!cardData) return true;
-                    const nextReviewDate = new Date(cardData.nextReview).setHours(0, 0, 0, 0);
-                    return nextReviewDate <= today;
-                });
-                reviewQueue.sort(() => Math.random() - 0.5);
+                    return new Date(cardData.nextReview).setHours(0, 0, 0, 0) <= today;
+                }));
             }
 
             function showNextCard() {
                 flashcardEl.classList.remove('is-flipped');
                 ratingButtonsEl.classList.remove('pointer-events-none', 'opacity-50');
-
+                
                 if (reviewQueue.length > 0) {
                     currentCard = reviewQueue.shift();
-                    progressTextEl.textContent = `REVIEW: SISA ${reviewQueue.length + 1} KARTU`;
-
+                    progressTextEl.textContent = `REVIEW SRS: SISA ${reviewQueue.length + 1} KARTU`;
                     setTimeout(() => {
                         frontKanji.textContent = currentCard.kanji;
                         backFurigana.textContent = currentCard.furigana;
                         backMeaning.textContent = currentCard.meaning;
                     }, 150);
                 } else {
-                    startMuscleMemory();
+                    startPhase1MC();
                 }
             }
 
             flashcardEl.addEventListener('click', () => {
                 flashcardEl.classList.toggle('is-flipped');
-                if (flashcardEl.classList.contains('is-flipped')) {
-                    playTTS(currentCard.kanji);
-                }
+                if (flashcardEl.classList.contains('is-flipped')) playTTS(currentCard.kanji);
             });
-
-            playAudioBtnFront.addEventListener('click', (e) => {
-                e.stopPropagation(); 
-                if(currentCard) playTTS(currentCard.kanji);
+            $('play-audio-btn-front').addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (currentCard) playTTS(currentCard.kanji);
             });
 
             function processRating(rating) {
-                // Cegah klik beruntun
                 ratingButtonsEl.classList.add('pointer-events-none', 'opacity-50');
-                
                 let cardData = srsData[currentCard.kanji] || { level: 0 };
                 
-                if (rating === 'forget') { 
-                    cardData.level = 0; 
-                    mmQueue.push(currentCard);
-                }
-                else if (rating === 'hard') { 
-                    cardData.level = Math.max(0, cardData.level - 1); 
-                    mmQueue.push(currentCard);
-                }
-                else if (rating === 'easy') { 
-                    cardData.level = (cardData.level || 0) + 1; 
-                    if (cardData.level === 1) mmQueue.push(currentCard);
-                }
-
+                if (rating === 'forget') cardData.level = 0;
+                else if (rating === 'hard') cardData.level = Math.max(0, cardData.level - 1);
+                else if (rating === 'easy') cardData.level = (cardData.level || 0) + 1;
+                
                 const interval = srsIntervals[Math.min(cardData.level, srsIntervals.length - 1)];
                 const nextReviewDate = new Date();
                 if (interval) nextReviewDate.setDate(nextReviewDate.getDate() + interval);
@@ -395,154 +419,181 @@
             });
 
             // ==========================================
-            // LOGIKA MUSCLE MEMORY (Ketik)
+            // TOAST POPUP (Hilang Otomatis)
             // ==========================================
-            function startMuscleMemory() {
-                if (mmQueue.length === 0) { 
-                    startMatchingCards(); // Ganti dari endSession menjadi masuk ke Mini Game
-                    return; 
-                }
-                cardViewEl.classList.add('hidden');
-                muscleMemoryView.classList.remove('hidden');
-                mmQueue.sort(() => Math.random() - 0.5);
-                showNextMM();
+            let toastTimer = null;
+            function showAnswerModal(card, isCorrect, onClose, yourAnswer) {
+                modalStatus.className = `px-4 py-2.5 flex items-center gap-2 text-white ${isCorrect ? 'bg-emerald-600' : 'bg-rose-500'}`;
+                modalStatusIcon.className = `fas ${isCorrect ? 'fa-circle-check' : 'fa-circle-xmark'}`;
+                modalStatusTitle.textContent = isCorrect ? 'Benar!' : 'Kurang tepat';
+                modalStatusSub.textContent = isCorrect ? '' : (yourAnswer ? `Jawaban: ${yourAnswer}` : '');
+                
+                modalKanji.textContent = card.kanji;
+                modalFurigana.textContent = card.furigana;
+                modalMeaning.textContent = card.meaning || '-';
+                
+                const duration = isCorrect ? 1800 : 2800; 
+                toastCard.classList.remove('toast-out');
+                modalEl.classList.remove('hidden');
+                
+                toastBar.style.animation = 'none';
+                void toastBar.offsetWidth;
+                toastBar.style.animation = `toastBar ${duration}ms linear forwards`;
+                
+                playTTS(card.kanji);
+                clearTimeout(toastTimer);
+                
+                toastTimer = setTimeout(() => {
+                    toastCard.classList.add('toast-out');
+                    setTimeout(() => {
+                        modalEl.classList.add('hidden');
+                        window.speechSynthesis && window.speechSynthesis.cancel();
+                        if (onClose) onClose();
+                    }, 250);
+                }, duration);
             }
 
-            function showNextMM() {
-                if (mmQueue.length === 0) { 
-                    startMatchingCards(); 
-                    return; 
-                }
-                currentCard = mmQueue.shift();
-                currentMMType = Math.random() > 0.5 ? 'furigana' : 'meaning';
+            // ==========================================
+            // TAHAP 1: PILIHAN GANDA (Jumlah = totalKanji)
+            // ==========================================
+            function buildMCQuestion(card) {
+                const isReading = (mmTurn++ % 2 === 0);
+                const key = isReading ? 'furigana' : 'kanji';
+                const answer = card[key];
+                const pool = [...new Set(fullWeeklyKanji.map(k => k[key]).filter(v => v && v !== answer))];
                 
-                if (currentMMType === 'furigana') {
-                    mmInstructionTitle.textContent = "Ketik Cara Baca";
-                    mmInstructionDesc.textContent = "Gunakan huruf Hiragana / Romaji";
-                } else {
-                    mmInstructionTitle.textContent = "Ketik Arti Bahasa Indonesia";
-                    mmInstructionDesc.textContent = "Ketik salah satu arti yang relevan";
-                }
-
-                progressTextEl.textContent = `PENGUATAN: ${mmQueue.length + 1} SISA`;
-                mmKanjiDisplay.textContent = currentCard.kanji;
-                mmInput.value = '';
-                mmFeedback.textContent = '';
-                
-                setTimeout(() => mmInput.focus(), 100);
-            }
-
-            playAudioBtnMm.addEventListener('click', () => {
-                if(currentCard) playTTS(currentCard.kanji);
-            });
-
-            function checkMMAnswer() {
-                const answer = mmInput.value.trim().toLowerCase();
-                let isCorrect = false;
-                
-                if (answer === '') {
-                    mmFeedback.className = "text-center font-medium min-h-[1.5rem] h-auto text-[11px] text-amber-500 break-words mt-3 px-2";
-                    mmFeedback.textContent = "Jawaban tidak boleh kosong!";
-                    return;
-                }
-
-                if (currentMMType === 'furigana') {
-                    isCorrect = (answer === currentCard.furigana.toLowerCase());
-                } else {
-                    const correctMeaningsArray = currentCard.meaning.toLowerCase().split(',').map(m => m.trim());
-                    isCorrect = correctMeaningsArray.includes(answer);
-                }
-
-                if (isCorrect) {
-                    mmFeedback.className = "text-center font-medium min-h-[1.5rem] h-auto text-[11px] text-emerald-600 break-words mt-3 px-2";
-                    mmFeedback.textContent = "Benar! ✨";
-                    playTTS(currentCard.kanji);
-                    setTimeout(showNextMM, 800);
-                } else {
-                    mmFeedback.className = "text-center font-medium min-h-[1.5rem] h-auto text-[11px] text-rose-500 break-words mt-3 px-2";
-                    const correctAnswerText = currentMMType === 'furigana' ? currentCard.furigana : currentCard.meaning;
-                    mmFeedback.textContent = `Salah. Jawaban yang benar: ${correctAnswerText}`;
+                const wrong = shuffle(pool)
+                    .sort((a, b) => Math.abs(a.length - answer.length) - Math.abs(b.length - answer.length))
+                    .slice(0, 3);
                     
-                    mmQueue.push(currentCard);
-                    setTimeout(showNextMM, 2500);
-                }
+                return { card, isReading, answer, options: shuffle([...wrong, answer]) };
             }
 
-            mmSubmit.addEventListener('click', checkMMAnswer);
-            mmInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') checkMMAnswer(); });
+            function startPhase1MC() {
+                cardViewEl.classList.add('hidden');
+                practiceView.classList.remove('hidden');
+                
+                mmQueue = shuffle(fullWeeklyKanji);
+                scoreMC = 0;
+                mmTurn = Math.random() > 0.5 ? 1 : 0;
+                
+                showNextMC();
+            }
 
-            // ==========================================
-            // NEW: LOGIKA MATCHING CARDS MINI GAME
-            // ==========================================
-            function startMatchingCards() {
-                muscleMemoryView.classList.add('hidden');
-                cardViewEl.classList.add('hidden'); // Memastikan srs view tertutup
-                matchingCardsView.classList.remove('hidden');
-                progressTextEl.textContent = 'MINI GAME';
-
-                // Ambil maksimal 6 Kanji acak dari materi minggu ini
-                const gameItems = [...fullWeeklyKanji].sort(() => Math.random() - 0.5).slice(0, 6);
-                mcTotalPairs = gameItems.length;
-                mcMatchedCount = 0;
-                mcCards = [];
-
-                // Pecah tiap item menjadi 2 kartu (Kanji dan Artinya)
-                gameItems.forEach((item, index) => {
-                    mcCards.push({ id: `k-${index}`, matchId: index, text: item.kanji, type: 'kanji' });
-                    // Untuk kartu arti, ambil hanya makna pertama sebelum koma agar muat di kotak kecil
-                    const shortMeaning = item.meaning.split(',')[0].trim();
-                    mcCards.push({ id: `m-${index}`, matchId: index, text: shortMeaning, type: 'meaning' });
+            function showNextMC() {
+                if (mmQueue.length === 0) { 
+                    practiceView.classList.add('hidden'); 
+                    startPhase2Match(); 
+                    return; 
+                }
+                
+                mmCurrent = buildMCQuestion(mmQueue.shift());
+                mmAnswered = false;
+                currentCard = mmCurrent.card;
+                
+                progressTextEl.textContent = `TAHAP 1/3: PILIHAN GANDA (${totalKanji - mmQueue.length}/${totalKanji})`;
+                
+                if (mmCurrent.isReading) {
+                    mmInstructionTitle.textContent = 'Bagaimana cara membaca Kanji ini?';
+                    mmInstructionDesc.textContent = 'Pilih furigana yang tepat';
+                    mmSubjectDisplay.textContent = mmCurrent.card.kanji;
+                } else {
+                    mmInstructionTitle.textContent = 'Pilih Kanji yang sesuai';
+                    mmInstructionDesc.textContent = 'Tebak Kanji dari furigana ini';
+                    mmSubjectDisplay.textContent = mmCurrent.card.furigana;
+                }
+                
+                mmSubjectDisplay.className = `${mmCurrent.isReading ? 'text-6xl' : 'text-4xl'} font-bold text-center text-stone-800 break-words px-10`;
+                mmOptionsEl.innerHTML = '';
+                
+                mmCurrent.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.dataset.value = opt;
+                    btn.textContent = opt;
+                    btn.className = `mm-option p-4 bg-[#fafaf8] border-2 border-stone-200 rounded-2xl font-bold text-stone-800 break-words transition-all hover:border-[#4a5d23] hover:bg-white active:scale-95 ${mmCurrent.isReading ? 'text-lg' : 'text-2xl'}`;
+                    mmOptionsEl.appendChild(btn);
                 });
+            }
 
-                // Kocok total ke-12 kartu
-                mcCards.sort(() => Math.random() - 0.5);
+            mmOptionsEl.addEventListener('click', (e) => {
+                const btn = e.target.closest('.mm-option');
+                if (!btn || mmAnswered || !mmCurrent) return;
+                
+                mmAnswered = true;
+                const picked = btn.dataset.value;
+                const isCorrect = picked === mmCurrent.answer;
+                
+                if (isCorrect) scoreMC++;
+                
+                mmOptionsEl.querySelectorAll('.mm-option').forEach(b => {
+                    b.disabled = true;
+                    b.classList.remove('hover:border-[#4a5d23]', 'hover:bg-white');
+                    if (b.dataset.value === mmCurrent.answer) b.classList.add('!border-emerald-500', '!bg-emerald-50');
+                });
+                
+                if (!isCorrect) btn.classList.add('!border-rose-400', '!bg-rose-50');
+                
+                setTimeout(() => showAnswerModal(mmCurrent.card, isCorrect, showNextMC, isCorrect ? null : picked), 350);
+            });
+            $('play-audio-btn-mm').addEventListener('click', () => { if (currentCard) playTTS(currentCard.kanji); });
+
+            // ==========================================
+            // TAHAP 2: MATCHING CARDS (Jumlah = totalKanji Pasang)
+            // ==========================================
+            function startPhase2Match() {
+                practiceView.classList.add('hidden');
+                matchingCardsView.classList.remove('hidden');
+                
+                mcMatchedCount = 0;
+                mcMistakes = 0;
+                mcFlippedCards = [];
+                mcIsLocked = false;
+                mcCards = [];
+                
+                progressTextEl.textContent = `TAHAP 2/3: MATCHING (${mcMatchedCount}/${totalKanji})`;
+                
+                const gameItems = shuffle(fullWeeklyKanji);
+                gameItems.forEach((item, index) => {
+                    mcCards.push({ matchId: index, text: item.kanji, type: 'kanji', item });
+                    mcCards.push({ matchId: index, text: item.furigana, type: 'furigana', item });
+                });
+                mcCards = shuffle(mcCards);
+                
                 renderMatchingCards();
             }
 
             function renderMatchingCards() {
                 mcGrid.innerHTML = '';
                 mcCards.forEach((card, index) => {
-                    // Font lebih besar untuk Kanji, lebih kecil untuk Arti
-                    const textSize = card.type === 'kanji' ? 'text-3xl font-bold' : 'text-[11px] font-semibold leading-snug';
-                    
-                    const html = `
+                    const textSize = card.type === 'kanji' ? 'text-2xl font-bold' : 'text-xs font-bold leading-tight text-[#4a5d23]';
+                    mcGrid.insertAdjacentHTML('beforeend', `
                         <div class="mc-card relative w-full aspect-[4/5] cursor-pointer perspective-1000" onclick="flipMcCard(${index})">
                             <div class="absolute w-full h-full transition-transform duration-500 preserve-3d shadow-sm rounded-2xl" id="mc-inner-${index}">
-                                <!-- Sisi Depan (Tertutup) -->
                                 <div class="absolute inset-0 backface-hidden bg-[#fafaf8] border-2 border-stone-200 rounded-2xl flex items-center justify-center text-stone-300 hover:bg-stone-50 transition-colors">
-                                    <i class="fas fa-leaf text-2xl opacity-50"></i>
+                                    <i class="fas fa-leaf text-xl opacity-50"></i>
                                 </div>
-                                <!-- Sisi Belakang (Terbuka) -->
-                                <div class="absolute inset-0 backface-hidden bg-white border-2 border-[#4a5d23] rounded-2xl flex items-center justify-center p-2 text-center rotate-y-180" id="mc-back-${index}">
-                                    <span class="${textSize} text-stone-800 break-words capitalize line-clamp-3">${card.text}</span>
+                                <div class="absolute inset-0 backface-hidden bg-white border-2 border-[#4a5d23] rounded-2xl flex items-center justify-center p-1 text-center rotate-y-180" id="mc-back-${index}">
+                                    <span class="${textSize} break-words">${escapeHTML(card.text)}</span>
                                 </div>
                             </div>
                         </div>
-                    `;
-                    mcGrid.insertAdjacentHTML('beforeend', html);
+                    `);
                 });
             }
 
-            // Handler Saat Kartu Diklik
-            window.flipMcCard = function(index) {
+            window.flipMcCard = function (index) {
                 if (mcIsLocked) return;
-                
-                const cardData = mcCards[index];
-                const innerEl = document.getElementById(`mc-inner-${index}`);
-
-                // Abaikan jika kartu sudah terbuka atau sudah cocok
+                const innerEl = $(`mc-inner-${index}`);
                 if (innerEl.classList.contains('is-flipped') || innerEl.classList.contains('is-matched')) return;
-
-                // Balik Kartu
+                
                 innerEl.classList.add('is-flipped');
                 innerEl.style.transform = 'rotateY(180deg)';
                 
-                // Bacakan audio jika yang dibalik adalah Kanji
+                const cardData = mcCards[index];
                 if (cardData.type === 'kanji') playTTS(cardData.text);
-
+                
                 mcFlippedCards.push({ index, matchId: cardData.matchId });
-
-                // Jika sudah 2 kartu terbuka, kunci dan periksa
+                
                 if (mcFlippedCards.length === 2) {
                     mcIsLocked = true;
                     checkMcMatch();
@@ -550,61 +601,125 @@
             };
 
             function checkMcMatch() {
-                const [card1, card2] = mcFlippedCards;
-                const inner1 = document.getElementById(`mc-inner-${card1.index}`);
-                const inner2 = document.getElementById(`mc-inner-${card2.index}`);
-                const back1 = document.getElementById(`mc-back-${card1.index}`);
-                const back2 = document.getElementById(`mc-back-${card2.index}`);
-
-                if (card1.matchId === card2.matchId) {
-                    // BENAR (Pasangan Cocok)
+                const [c1, c2] = mcFlippedCards;
+                const inner1 = $(`mc-inner-${c1.index}`);
+                const inner2 = $(`mc-inner-${c2.index}`);
+                const back1 = $(`mc-back-${c1.index}`);
+                const back2 = $(`mc-back-${c2.index}`);
+                
+                const d1 = mcCards[c1.index], d2 = mcCards[c2.index];
+                const isMatch = d1.type !== d2.type && d1.item.furigana === d2.item.furigana;
+                
+                if (isMatch) {
                     setTimeout(() => {
-                        // Ubah warna border & background jadi hijau
-                        back1.classList.replace('border-[#4a5d23]', 'border-emerald-500');
-                        back1.classList.add('bg-emerald-50');
-                        back2.classList.replace('border-[#4a5d23]', 'border-emerald-500');
-                        back2.classList.add('bg-emerald-50');
-
+                        [back1, back2].forEach(b => {
+                            b.classList.replace('border-[#4a5d23]', 'border-emerald-500');
+                            b.classList.add('bg-emerald-50');
+                        });
                         inner1.classList.add('is-matched');
                         inner2.classList.add('is-matched');
-
+                        
                         mcMatchedCount++;
+                        progressTextEl.textContent = `TAHAP 2/3: MATCHING (${mcMatchedCount}/${totalKanji})`;
+                        
                         mcFlippedCards = [];
                         mcIsLocked = false;
-
-                        // Cek apakah seluruh kartu sudah terbuka
-                        if (mcMatchedCount === mcTotalPairs) {
-                            setTimeout(endSession, 1200);
+                        
+                        if (mcMatchedCount === totalKanji) {
+                            scoreMatch = Math.max(0, totalKanji - mcMistakes);
+                            setTimeout(startPhase3Typing, 1000);
                         }
-                    }, 400); 
+                    }, 400);
                 } else {
-                    // SALAH (Tidak Cocok)
+                    mcMistakes++;
                     setTimeout(() => {
-                        // Balik kembali kartunya
-                        inner1.classList.remove('is-flipped');
-                        inner1.style.transform = 'rotateY(0deg)';
-                        inner2.classList.remove('is-flipped');
-                        inner2.style.transform = 'rotateY(0deg)';
-
+                        [inner1, inner2].forEach(el => {
+                            el.classList.remove('is-flipped');
+                            el.style.transform = 'rotateY(0deg)';
+                        });
                         mcFlippedCards = [];
                         mcIsLocked = false;
-                    }, 1200); // Waktu jeda agar user bisa mengingat posisi kartu
+                    }, 1200);
                 }
             }
+
+            // ==========================================
+            // TAHAP 3: TYPING QUIZ (Jumlah = totalKanji)
+            // ==========================================
+            const toHira = (str) => String(str || '').trim().replace(/\s+/g, '')
+                .replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
+            function startPhase3Typing() {
+                matchingCardsView.classList.add('hidden');
+                typingView.classList.remove('hidden');
+                
+                tyQueue = shuffle(fullWeeklyKanji);
+                scoreTY = 0;
+                
+                showNextTyping();
+            }
+
+            function showNextTyping() {
+                if (tyQueue.length === 0) { 
+                    typingView.classList.add('hidden'); 
+                    endSession(); 
+                    return; 
+                }
+                
+                tyCurrent = tyQueue.shift();
+                currentCard = tyCurrent;
+                tyAnswered = false;
+                
+                progressTextEl.textContent = `TAHAP 3/3: TYPING (${totalKanji - tyQueue.length}/${totalKanji})`;
+                
+                tyKanjiDisplay.textContent = tyCurrent.kanji;
+                tyInput.value = '';
+                tyInput.disabled = false;
+                tySubmit.disabled = false;
+                tyInput.placeholder = 'Ketik furigana disini...';
+                tyInput.className = tyInput.className.replace(/\s*!border-\S+/g, '').replace(/\s*!bg-\S+/g, '');
+                
+                setTimeout(() => tyInput.focus(), 100);
+            }
+
+            function checkTyping() {
+                if (tyAnswered || !tyCurrent) return;
+                const raw = tyInput.value.trim();
+                
+                if (raw === '') { tyInput.placeholder = 'Jawaban tidak boleh kosong!'; return; }
+                
+                tyAnswered = true;
+                tyInput.disabled = true;
+                tySubmit.disabled = true;
+                
+                const isCorrect = toHira(raw) === toHira(tyCurrent.furigana);
+                if (isCorrect) scoreTY++;
+                
+                tyInput.classList.add(isCorrect ? '!border-emerald-500' : '!border-rose-400', isCorrect ? '!bg-emerald-50' : '!bg-rose-50');
+                
+                showAnswerModal(tyCurrent, isCorrect, showNextTyping, isCorrect ? null : raw);
+            }
+
+            tySubmit.addEventListener('click', checkTyping);
+            tyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkTyping(); });
+            $('play-audio-btn-ty').addEventListener('click', () => { if (currentCard) playTTS(currentCard.kanji); });
 
             // ==========================================
             // PENUTUPAN SESI
             // ==========================================
             function endSession() {
-                matchingCardsView.classList.add('hidden'); // Tutup layar mini game
-                progressTextEl.textContent = 'SELESAI';
+                progressTextEl.textContent = 'LATIHAN SELESAI';
+                
+                $('score-mc').textContent = `${scoreMC}/${totalKanji}`;
+                $('score-match').textContent = `${scoreMatch}/${totalKanji}`;
+                $('score-ty').textContent = `${scoreTY}/${totalKanji}`;
+                
                 sessionCompleteEl.classList.remove('hidden');
                 
-                // Simpan data interval Spaced Repetition ke LocalStorage
+                // Simpan rating progress flashcard SRS ke storage
                 localStorage.setItem('kanjiSRSData', JSON.stringify(srsData));
             }
 
-            // Mulai eksekusi saat halaman dimuat
             init();
         });
     </script>
